@@ -1,0 +1,206 @@
+{
+  "description": "Structural examples only; referenced IDs are fictitious. Business eligibility, permissions and cross-field constraints require application checks.",
+  "valid": [
+    {
+      "schema": "QualifiedValue",
+      "name": "known-length",
+      "value": {
+        "state": "known",
+        "value": 3,
+        "unit": "m",
+        "sourceRefs": [
+          "claim:manual-1"
+        ],
+        "methodVersion": "manual-entry/1"
+      }
+    },
+    {
+      "schema": "QualifiedValue",
+      "name": "unknown-is-null",
+      "value": {
+        "state": "unknown",
+        "value": null,
+        "unit": "m",
+        "sourceRefs": [],
+        "methodVersion": "missing-elevation/1",
+        "reason": "Elevation absent from reviewed sources",
+        "issueRefs": [
+          "issue:z-missing"
+        ]
+      }
+    },
+    {
+      "schema": "QualifiedValue",
+      "name": "provisional-length",
+      "value": {
+        "state": "provisional",
+        "value": 3,
+        "unit": "m",
+        "sourceRefs": [
+          "claim:manual-1"
+        ],
+        "methodVersion": "manual-entry/1",
+        "assumptionRefs": [
+          "assumption:1"
+        ],
+        "issueRefs": [
+          "issue:1"
+        ]
+      }
+    },
+    {
+      "schema": "Command",
+      "name": "route-with-unknown-elevation",
+      "value": {
+        "type": "UpsertRoute",
+        "routeId": "route:1",
+        "vertices": [
+          {
+            "x": 0,
+            "y": 0,
+            "z": {
+              "state": "known",
+              "value": 3,
+              "unit": "m",
+              "sourceRefs": [
+                "claim:manual-1"
+              ],
+              "methodVersion": "manual-entry/1"
+            }
+          },
+          {
+            "x": 3,
+            "y": 4,
+            "z": {
+              "state": "unknown",
+              "value": null,
+              "unit": "m",
+              "sourceRefs": [],
+              "methodVersion": "missing-elevation/1",
+              "reason": "Elevation absent from reviewed sources",
+              "issueRefs": [
+                "issue:z-missing"
+              ]
+            }
+          }
+        ],
+        "spec": {
+          "sizeSystem": "DN",
+          "designation": "50",
+          "materialSpecId": "spec:synthetic",
+          "joiningFamilyId": "joining:synthetic"
+        },
+        "systemId": "system:1",
+        "zoneId": "zone:1",
+        "workStatus": "new",
+        "evidence": {
+          "origin": "manual",
+          "sourceRefs": [],
+          "originNote": "Estimator entered coordinates; requires review."
+        }
+      }
+    },
+    {
+      "schema": "JobStart",
+      "name": "fabrication-job",
+      "value": {
+        "kind": "takeoff",
+        "inputRevision": 7,
+        "scope": {
+          "includedIds": [
+            "route:1"
+          ],
+          "excludedIds": [],
+          "description": "New branch only"
+        },
+        "ledger": "fabrication",
+        "policyId": "policy:1"
+      }
+    },
+    {
+      "schema": "Problem",
+      "name": "stale-project",
+      "value": {
+        "type": "urn:noel:sprinkler:problem:stale-input",
+        "title": "Project changed",
+        "status": 412,
+        "detail": "Refresh accepted state before resubmitting.",
+        "instance": "operation:42",
+        "code": "STALE_INPUT",
+        "issueIds": [],
+        "currentRevision": 8
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "schema": "QualifiedValue",
+      "name": "unknown-cannot-be-zero",
+      "value": {
+        "state": "unknown",
+        "value": 0,
+        "unit": "m",
+        "sourceRefs": [],
+        "methodVersion": "missing-elevation/1",
+        "reason": "Elevation absent from reviewed sources",
+        "issueRefs": [
+          "issue:z-missing"
+        ]
+      }
+    },
+    {
+      "schema": "QualifiedValue",
+      "name": "known-cannot-be-null",
+      "value": {
+        "state": "known",
+        "value": null,
+        "unit": "m",
+        "sourceRefs": [
+          "claim:manual-1"
+        ],
+        "methodVersion": "manual-entry/1"
+      }
+    },
+    {
+      "schema": "QualifiedValue",
+      "name": "provisional-needs-assumption",
+      "value": {
+        "state": "provisional",
+        "value": 3,
+        "unit": "m",
+        "sourceRefs": [
+          "claim:manual-1"
+        ],
+        "methodVersion": "manual-entry/1",
+        "issueRefs": [
+          "issue:1"
+        ]
+      }
+    },
+    {
+      "schema": "Command",
+      "name": "no-arbitrary-patches",
+      "value": {
+        "type": "UpdateDatabase",
+        "sql": "select 1"
+      }
+    },
+    {
+      "schema": "JobStart",
+      "name": "hydraulics-not-supported",
+      "value": {
+        "kind": "takeoff",
+        "inputRevision": 7,
+        "scope": {
+          "includedIds": [
+            "route:1"
+          ],
+          "excludedIds": [],
+          "description": "Example"
+        },
+        "ledger": "hydraulic",
+        "policyId": "policy:1"
+      }
+    }
+  ]
+}

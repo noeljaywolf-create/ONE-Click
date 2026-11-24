@@ -1,0 +1,532 @@
+{
+  "title": "Synthetic Sprinkler Takeoff Reference Fixture",
+  "date": "2026-11-12",
+  "author": "Noel Chakwenya",
+  "scope": "Known straight geometry and declared net offsets only; no drawing recognition, manufacturer assembly solver, approval or real-project validation. Counts are fixture design expectations, not independently inferred components.",
+  "units": "metres",
+  "joint_gap_policy": "Explicit synthetic zero gaps; do not use as real installation convention",
+  "pieces": [
+    {
+      "id": "M1",
+      "start_m": [
+        0,
+        0,
+        3
+      ],
+      "end_m": [
+        3,
+        0,
+        3
+      ],
+      "start_net_offset_m": 0,
+      "end_net_offset_m": 0.1,
+      "group": "main_DN50_synthetic"
+    },
+    {
+      "id": "M2",
+      "start_m": [
+        3,
+        0,
+        3
+      ],
+      "end_m": [
+        6,
+        0,
+        3
+      ],
+      "start_net_offset_m": 0.1,
+      "end_net_offset_m": 0.1,
+      "group": "main_DN50_synthetic"
+    },
+    {
+      "id": "M3",
+      "start_m": [
+        6,
+        0,
+        3
+      ],
+      "end_m": [
+        9,
+        0,
+        3
+      ],
+      "start_net_offset_m": 0.1,
+      "end_net_offset_m": 0.1,
+      "group": "main_DN50_synthetic"
+    },
+    {
+      "id": "M4",
+      "start_m": [
+        9,
+        0,
+        3
+      ],
+      "end_m": [
+        12,
+        0,
+        3
+      ],
+      "start_net_offset_m": 0.1,
+      "end_net_offset_m": 0.03,
+      "group": "main_DN50_synthetic"
+    },
+    {
+      "id": "B1H",
+      "start_m": [
+        3,
+        0,
+        3
+      ],
+      "end_m": [
+        3,
+        2,
+        3
+      ],
+      "start_net_offset_m": 0.075,
+      "end_net_offset_m": 0.05,
+      "group": "branch_DN25_synthetic"
+    },
+    {
+      "id": "B1D",
+      "start_m": [
+        3,
+        2,
+        3
+      ],
+      "end_m": [
+        3,
+        2,
+        2
+      ],
+      "start_net_offset_m": 0.05,
+      "end_net_offset_m": 0.025,
+      "group": "branch_DN25_synthetic"
+    },
+    {
+      "id": "B2H",
+      "start_m": [
+        6,
+        0,
+        3
+      ],
+      "end_m": [
+        6,
+        2,
+        3
+      ],
+      "start_net_offset_m": 0.075,
+      "end_net_offset_m": 0.05,
+      "group": "branch_DN25_synthetic"
+    },
+    {
+      "id": "B2D",
+      "start_m": [
+        6,
+        2,
+        3
+      ],
+      "end_m": [
+        6,
+        2,
+        2
+      ],
+      "start_net_offset_m": 0.05,
+      "end_net_offset_m": 0.025,
+      "group": "branch_DN25_synthetic"
+    },
+    {
+      "id": "B3H",
+      "start_m": [
+        9,
+        0,
+        3
+      ],
+      "end_m": [
+        9,
+        2,
+        3
+      ],
+      "start_net_offset_m": 0.075,
+      "end_net_offset_m": 0.05,
+      "group": "branch_DN25_synthetic"
+    },
+    {
+      "id": "B3D",
+      "start_m": [
+        9,
+        2,
+        3
+      ],
+      "end_m": [
+        9,
+        2,
+        2
+      ],
+      "start_net_offset_m": 0.05,
+      "end_net_offset_m": 0.025,
+      "group": "branch_DN25_synthetic"
+    }
+  ],
+  "expected": {
+    "route_total_m": 21.0,
+    "cut_total_m": 19.77,
+    "main_cut_m": 11.37,
+    "branch_cut_m": 8.4,
+    "pipe_piece_count": 10,
+    "counts": {
+      "reducing_tees": 3,
+      "elbows": 3,
+      "caps": 1,
+      "terminal_connection_assemblies": 3,
+      "sprinklers": 3,
+      "grooved_joint_assemblies_main": 8,
+      "grooved_joint_assemblies_branch": 12
+    }
+  },
+  "calculated": {
+    "rows": [
+      {
+        "id": "M1",
+        "route_length_m": 3.0,
+        "cut_length_m": 2.9,
+        "status": "synthetic_reference"
+      },
+      {
+        "id": "M2",
+        "route_length_m": 3.0,
+        "cut_length_m": 2.8,
+        "status": "synthetic_reference"
+      },
+      {
+        "id": "M3",
+        "route_length_m": 3.0,
+        "cut_length_m": 2.8,
+        "status": "synthetic_reference"
+      },
+      {
+        "id": "M4",
+        "route_length_m": 3.0,
+        "cut_length_m": 2.87,
+        "status": "synthetic_reference"
+      },
+      {
+        "id": "B1H",
+        "route_length_m": 2.0,
+        "cut_length_m": 1.875,
+        "status": "synthetic_reference"
+      },
+      {
+        "id": "B1D",
+        "route_length_m": 1.0,
+        "cut_length_m": 0.925,
+        "status": "synthetic_reference"
+      },
+      {
+        "id": "B2H",
+        "route_length_m": 2.0,
+        "cut_length_m": 1.875,
+        "status": "synthetic_reference"
+      },
+      {
+        "id": "B2D",
+        "route_length_m": 1.0,
+        "cut_length_m": 0.925,
+        "status": "synthetic_reference"
+      },
+      {
+        "id": "B3H",
+        "route_length_m": 2.0,
+        "cut_length_m": 1.875,
+        "status": "synthetic_reference"
+      },
+      {
+        "id": "B3D",
+        "route_length_m": 1.0,
+        "cut_length_m": 0.925,
+        "status": "synthetic_reference"
+      }
+    ],
+    "known_cut_subtotal_m": 19.77,
+    "complete_cut_total_m": 19.77,
+    "known_route_subtotal_m": 21.0,
+    "complete": true
+  },
+  "mutations": {
+    "lowered_terminals": {
+      "rows": [
+        {
+          "id": "M1",
+          "route_length_m": 3.0,
+          "cut_length_m": 2.9,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "M2",
+          "route_length_m": 3.0,
+          "cut_length_m": 2.8,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "M3",
+          "route_length_m": 3.0,
+          "cut_length_m": 2.8,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "M4",
+          "route_length_m": 3.0,
+          "cut_length_m": 2.87,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B1H",
+          "route_length_m": 2.0,
+          "cut_length_m": 1.875,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B1D",
+          "route_length_m": 1.5,
+          "cut_length_m": 1.425,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B2H",
+          "route_length_m": 2.0,
+          "cut_length_m": 1.875,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B2D",
+          "route_length_m": 1.5,
+          "cut_length_m": 1.425,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B3H",
+          "route_length_m": 2.0,
+          "cut_length_m": 1.875,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B3D",
+          "route_length_m": 1.5,
+          "cut_length_m": 1.425,
+          "status": "synthetic_reference"
+        }
+      ],
+      "known_cut_subtotal_m": 21.27,
+      "complete_cut_total_m": 21.27,
+      "known_route_subtotal_m": 22.5,
+      "complete": true
+    },
+    "unknown_terminal": {
+      "rows": [
+        {
+          "id": "M1",
+          "route_length_m": 3.0,
+          "cut_length_m": 2.9,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "M2",
+          "route_length_m": 3.0,
+          "cut_length_m": 2.8,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "M3",
+          "route_length_m": 3.0,
+          "cut_length_m": 2.8,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "M4",
+          "route_length_m": 3.0,
+          "cut_length_m": 2.87,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B1H",
+          "route_length_m": 2.0,
+          "cut_length_m": 1.875,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B1D",
+          "route_length_m": 1.0,
+          "cut_length_m": 0.925,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B2H",
+          "route_length_m": 2.0,
+          "cut_length_m": 1.875,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B2D",
+          "route_length_m": 1.0,
+          "cut_length_m": 0.925,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B3H",
+          "route_length_m": 2.0,
+          "cut_length_m": 1.875,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B3D",
+          "status": "cannot_verify",
+          "cut_length_m": null
+        }
+      ],
+      "known_cut_subtotal_m": 18.845,
+      "complete_cut_total_m": null,
+      "known_route_subtotal_m": 20.0,
+      "complete": false
+    },
+    "changed_tee_offset": {
+      "rows": [
+        {
+          "id": "M1",
+          "route_length_m": 3.0,
+          "cut_length_m": 2.9,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "M2",
+          "route_length_m": 3.0,
+          "cut_length_m": 2.8,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "M3",
+          "route_length_m": 3.0,
+          "cut_length_m": 2.8,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "M4",
+          "route_length_m": 3.0,
+          "cut_length_m": 2.87,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B1H",
+          "route_length_m": 2.0,
+          "cut_length_m": 1.865,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B1D",
+          "route_length_m": 1.0,
+          "cut_length_m": 0.925,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B2H",
+          "route_length_m": 2.0,
+          "cut_length_m": 1.865,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B2D",
+          "route_length_m": 1.0,
+          "cut_length_m": 0.925,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B3H",
+          "route_length_m": 2.0,
+          "cut_length_m": 1.865,
+          "status": "synthetic_reference"
+        },
+        {
+          "id": "B3D",
+          "route_length_m": 1.0,
+          "cut_length_m": 0.925,
+          "status": "synthetic_reference"
+        }
+      ],
+      "known_cut_subtotal_m": 19.74,
+      "complete_cut_total_m": 19.74,
+      "known_route_subtotal_m": 21.0,
+      "complete": true
+    }
+  },
+  "catalogue_conflict_case": {
+    "source_document": "Wheatland WFS-080823 p2",
+    "nps": "5",
+    "schedule": "40",
+    "id_in": 5.047,
+    "listed_id_mm": 158.2,
+    "od_mm": 141.3,
+    "inch_to_mm_result": 128.1938,
+    "status": "quarantine_conflicting_fields",
+    "correction_authorized": false
+  },
+  "checks": [
+    {
+      "case": "route_total",
+      "status": "passed"
+    },
+    {
+      "case": "cut_total",
+      "status": "passed"
+    },
+    {
+      "case": "main_cut",
+      "status": "passed"
+    },
+    {
+      "case": "branch_cut",
+      "status": "passed"
+    },
+    {
+      "case": "piece_count",
+      "status": "passed"
+    },
+    {
+      "case": "joint_ownership",
+      "status": "passed"
+    },
+    {
+      "case": "terminal_elevation_change",
+      "status": "passed"
+    },
+    {
+      "case": "unknown_is_not_zero",
+      "status": "passed"
+    },
+    {
+      "case": "qualified_known_subtotal",
+      "status": "passed"
+    },
+    {
+      "case": "catalogue_takeout_change",
+      "status": "passed"
+    },
+    {
+      "case": "rotation_translation_invariance",
+      "status": "passed"
+    },
+    {
+      "case": "reversal_invariance",
+      "status": "passed"
+    },
+    {
+      "case": "negative_length_rejected",
+      "status": "passed"
+    },
+    {
+      "case": "catalogue_unit_conflict_detected",
+      "status": "passed"
+    },
+    {
+      "case": "catalogue_physical_conflict_detected",
+      "status": "passed"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "status": "PASS for listed limited checks",
+  "counts": {
+    "resolved schema/parameter references": 150,
+    "valid structural examples": 6,
+    "invalid structural examples": 5,
+    "operation shape/replay/precondition checks": 10,
+    "existing Markdown link targets": 43,
+    "synthetic route/cut baseline checks": 1,
+    "independent formula arithmetic checks": 6,
+    "ledger boundary checks": 1
+  },
+  "limitations": [
+    "Not complete OpenAPI or JSON Schema conformance validation",
+    "No production implementation, real catalogue, UI, auth, concurrency or recovery tests",
+    "Synthetic baseline arithmetic is not real-project accuracy evidence"
+  ]
+}

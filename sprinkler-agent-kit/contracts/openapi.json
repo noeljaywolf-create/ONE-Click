@@ -1,0 +1,2733 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Sprinkler Takeoff Optional Adapter",
+    "version": "0.1.0-design",
+    "description": "Proposed contract, not an implemented service. Internal engineering APIs are primary. Read docs/03-api-contracts.md for invariants beyond schemas. All POSTs use durable X-Operation-Id replay semantics; project POSTs pin If-Match. No hydraulic calculation endpoint in this slice."
+  },
+  "servers": [
+    {
+      "url": "/v1",
+      "description": "Relative optional local adapter base; deployment not selected."
+    }
+  ],
+  "security": [
+    {
+      "SessionBearer": []
+    }
+  ],
+  "paths": {
+    "/projects": {
+      "post": {
+        "operationId": "createProject",
+        "summary": "Create an SI engineering project",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OperationId"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Create an SI engineering project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Current strong project tag; snapshot manifest remains immutable.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}": {
+      "get": {
+        "operationId": "getProject",
+        "summary": "Query accepted project revision",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Query accepted project revision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Current strong project tag; snapshot manifest remains immutable.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/uploads": {
+      "post": {
+        "operationId": "stageUpload",
+        "summary": "Stage immutable PDF bytes without changing project revision",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/OperationId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Stage immutable PDF bytes without changing project revision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/pdf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/commands": {
+      "post": {
+        "operationId": "executeCommand",
+        "summary": "Execute one atomic typed command",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/OperationId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Execute one atomic typed command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Current strong project tag; snapshot manifest remains immutable.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Command"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/jobs": {
+      "post": {
+        "operationId": "startJob",
+        "summary": "Queue work on frozen inputs",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/OperationId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Queue work on frozen inputs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobStart"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/jobs/{jobId}": {
+      "get": {
+        "operationId": "getJob",
+        "summary": "Query job lifecycle and outputs",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/JobId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Query job lifecycle and outputs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/jobs/{jobId}/cancellation": {
+      "post": {
+        "operationId": "cancelJob",
+        "summary": "Request cooperative cancellation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/JobId"
+          },
+          {
+            "$ref": "#/components/parameters/OperationId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Request cooperative cancellation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancellationRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/results/{resultId}": {
+      "get": {
+        "operationId": "getResult",
+        "summary": "Read immutable derived result",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/ResultId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Read immutable derived result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/snapshots": {
+      "post": {
+        "operationId": "freezeSnapshot",
+        "summary": "Freeze compatible takeoff and review context",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/OperationId"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Freeze compatible takeoff and review context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Current strong project tag; snapshot manifest remains immutable.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnapshotCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/snapshots/{snapshotId}": {
+      "get": {
+        "operationId": "getSnapshot",
+        "summary": "Read immutable snapshot manifest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectId"
+          },
+          {
+            "$ref": "#/components/parameters/SnapshotId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Read immutable snapshot manifest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            },
+            "headers": {
+              "ETag": {
+                "description": "Current strong project tag; snapshot manifest remains immutable.",
+                "schema": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Problem details; see API semantics.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "SessionBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Opaque per-launch session token; never a professional reviewer signature."
+      }
+    },
+    "parameters": {
+      "ProjectId": {
+        "name": "projectId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "JobId": {
+        "name": "jobId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "ResultId": {
+        "name": "resultId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "SnapshotId": {
+        "name": "snapshotId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "OperationId": {
+        "name": "X-Operation-Id",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Application replay key; scoped and persisted as described in API semantics."
+      },
+      "IfMatch": {
+        "name": "If-Match",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "example": "\"project:p-demo:r7\"",
+        "description": "Exact strong project ETag. Wildcard is not an accepted application precondition."
+      }
+    },
+    "schemas": {
+      "Unit": {
+        "type": "string",
+        "enum": [
+          "m",
+          "each",
+          "kg",
+          "m3",
+          "Pa",
+          "m3/s"
+        ]
+      },
+      "Ledger": {
+        "type": "string",
+        "enum": [
+          "route",
+          "fabrication",
+          "hydraulic",
+          "procurement"
+        ]
+      },
+      "TakeoffLedger": {
+        "type": "string",
+        "enum": [
+          "route",
+          "fabrication",
+          "procurement"
+        ]
+      },
+      "KnownValue": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "const": "known"
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "methodVersion": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "state",
+          "value",
+          "unit",
+          "sourceRefs",
+          "methodVersion"
+        ],
+        "additionalProperties": false
+      },
+      "ProvisionalValue": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "const": "provisional"
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "methodVersion": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assumptionRefs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "issueRefs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "state",
+          "value",
+          "unit",
+          "sourceRefs",
+          "methodVersion",
+          "assumptionRefs",
+          "issueRefs"
+        ],
+        "additionalProperties": false
+      },
+      "UnknownValue": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "const": "unknown"
+          },
+          "value": {
+            "type": "null"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "methodVersion": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "issueRefs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "state",
+          "value",
+          "unit",
+          "sourceRefs",
+          "methodVersion",
+          "reason",
+          "issueRefs"
+        ],
+        "additionalProperties": false
+      },
+      "QualifiedValue": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/KnownValue"
+          },
+          {
+            "$ref": "#/components/schemas/ProvisionalValue"
+          },
+          {
+            "$ref": "#/components/schemas/UnknownValue"
+          }
+        ]
+      },
+      "QualifiedLength": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/QualifiedValue"
+          },
+          {
+            "properties": {
+              "unit": {
+                "const": "m"
+              }
+            }
+          }
+        ]
+      },
+      "Vertex": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "$ref": "#/components/schemas/QualifiedLength"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "z"
+        ],
+        "additionalProperties": false
+      },
+      "Point2": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      },
+      "Quaternion": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "w": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "z",
+          "w"
+        ],
+        "additionalProperties": false
+      },
+      "NominalSpec": {
+        "type": "object",
+        "properties": {
+          "sizeSystem": {
+            "type": "string",
+            "enum": [
+              "DN",
+              "NPS",
+              "manufacturer"
+            ]
+          },
+          "designation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "materialSpecId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "joiningFamilyId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "sizeSystem",
+          "designation",
+          "materialSpecId",
+          "joiningFamilyId"
+        ],
+        "additionalProperties": false
+      },
+      "EvidenceInput": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "type": "string",
+            "enum": [
+              "document_stated",
+              "measured",
+              "imported",
+              "inferred",
+              "assumed",
+              "manual"
+            ]
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "originNote": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "origin",
+          "sourceRefs",
+          "originNote"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "displayUnits": {
+            "type": "string",
+            "enum": [
+              "metric",
+              "imperial"
+            ]
+          },
+          "scopeDescription": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name",
+          "displayUnits",
+          "scopeDescription"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectView": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "scopeDescription": {
+            "type": "string",
+            "minLength": 1
+          },
+          "worldFrame": {
+            "const": "right_handed_z_up_metres"
+          }
+        },
+        "required": [
+          "projectId",
+          "revision",
+          "name",
+          "capabilities",
+          "scopeDescription",
+          "worldFrame"
+        ],
+        "additionalProperties": false
+      },
+      "Receipt": {
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "createdIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "invalidatedIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "issueIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "operationId",
+          "projectId",
+          "revision",
+          "createdIds",
+          "invalidatedIds",
+          "issueIds"
+        ],
+        "additionalProperties": false
+      },
+      "UploadReceipt": {
+        "type": "object",
+        "properties": {
+          "uploadId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "byteLength": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "inputRevision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "uploadId",
+          "sha256",
+          "byteLength",
+          "inputRevision"
+        ],
+        "additionalProperties": false
+      },
+      "ControlPoint": {
+        "type": "object",
+        "properties": {
+          "drawing": {
+            "$ref": "#/components/schemas/Point2"
+          },
+          "world": {
+            "$ref": "#/components/schemas/Point2"
+          }
+        },
+        "required": [
+          "drawing",
+          "world"
+        ],
+        "additionalProperties": false
+      },
+      "ImportDocument": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "ImportDocument"
+          },
+          "uploadId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "documentNumber": {
+            "type": "string",
+            "minLength": 1
+          },
+          "revisionLabel": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "type",
+          "uploadId",
+          "documentNumber",
+          "revisionLabel"
+        ],
+        "additionalProperties": false
+      },
+      "SetCalibration": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "SetCalibration"
+          },
+          "regionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "drawingFrameId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "worldFrameId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "similarity",
+              "affine",
+              "homography"
+            ]
+          },
+          "controls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ControlPoint"
+            },
+            "minItems": 2
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/EvidenceInput"
+          }
+        },
+        "required": [
+          "type",
+          "regionId",
+          "drawingFrameId",
+          "worldFrameId",
+          "model",
+          "controls",
+          "evidence"
+        ],
+        "additionalProperties": false
+      },
+      "UpsertRoute": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "UpsertRoute"
+          },
+          "routeId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "vertices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Vertex"
+            },
+            "minItems": 2
+          },
+          "spec": {
+            "$ref": "#/components/schemas/NominalSpec"
+          },
+          "systemId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "zoneId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "workStatus": {
+            "type": "string",
+            "enum": [
+              "new",
+              "existing",
+              "demolition"
+            ]
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/EvidenceInput"
+          }
+        },
+        "required": [
+          "type",
+          "routeId",
+          "vertices",
+          "spec",
+          "systemId",
+          "zoneId",
+          "workStatus",
+          "evidence"
+        ],
+        "additionalProperties": false
+      },
+      "PlaceComponent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "PlaceComponent"
+          },
+          "componentId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "catalogueReleaseId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "catalogueItemId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "position": {
+            "$ref": "#/components/schemas/Vertex"
+          },
+          "orientation": {
+            "$ref": "#/components/schemas/Quaternion"
+          },
+          "workStatus": {
+            "type": "string",
+            "enum": [
+              "new",
+              "existing",
+              "demolition"
+            ]
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/EvidenceInput"
+          }
+        },
+        "required": [
+          "type",
+          "componentId",
+          "catalogueReleaseId",
+          "catalogueItemId",
+          "position",
+          "orientation",
+          "workStatus",
+          "evidence"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectPorts": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "ConnectPorts"
+          },
+          "portA": {
+            "type": "string",
+            "minLength": 1
+          },
+          "portB": {
+            "type": "string",
+            "minLength": 1
+          },
+          "joiningAdapterId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/EvidenceInput"
+          }
+        },
+        "required": [
+          "type",
+          "portA",
+          "portB",
+          "joiningAdapterId",
+          "evidence"
+        ],
+        "additionalProperties": false
+      },
+      "AcceptProposal": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "AcceptProposal"
+          },
+          "proposalId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputFingerprint": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "type",
+          "proposalId",
+          "inputFingerprint"
+        ],
+        "additionalProperties": false
+      },
+      "ReviewProperty": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "ReviewProperty"
+          },
+          "subjectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "propertyPath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputFingerprint": {
+            "type": "string",
+            "minLength": 1
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "rejected",
+              "clarification_required"
+            ]
+          },
+          "comment": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "type",
+          "subjectId",
+          "propertyPath",
+          "purpose",
+          "inputFingerprint",
+          "outcome",
+          "comment"
+        ],
+        "additionalProperties": false
+      },
+      "SelectAssembly": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "SelectAssembly"
+          },
+          "candidateId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputFingerprint": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "type",
+          "candidateId",
+          "inputFingerprint"
+        ],
+        "additionalProperties": false
+      },
+      "ReleaseSnapshot": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "ReleaseSnapshot"
+          },
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          },
+          "policyId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reviewDecisionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "type",
+          "snapshotId",
+          "purpose",
+          "policyId",
+          "reviewDecisionIds"
+        ],
+        "additionalProperties": false
+      },
+      "Command": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ImportDocument"
+          },
+          {
+            "$ref": "#/components/schemas/SetCalibration"
+          },
+          {
+            "$ref": "#/components/schemas/UpsertRoute"
+          },
+          {
+            "$ref": "#/components/schemas/PlaceComponent"
+          },
+          {
+            "$ref": "#/components/schemas/ConnectPorts"
+          },
+          {
+            "$ref": "#/components/schemas/AcceptProposal"
+          },
+          {
+            "$ref": "#/components/schemas/ReviewProperty"
+          },
+          {
+            "$ref": "#/components/schemas/SelectAssembly"
+          },
+          {
+            "$ref": "#/components/schemas/ReleaseSnapshot"
+          }
+        ]
+      },
+      "Scope": {
+        "type": "object",
+        "properties": {
+          "includedIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "excludedIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "includedIds",
+          "excludedIds",
+          "description"
+        ],
+        "additionalProperties": false
+      },
+      "ExtractJob": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "extraction"
+          },
+          "inputRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "documentRevisionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "regionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "kind",
+          "inputRevision",
+          "documentRevisionId",
+          "regionIds"
+        ],
+        "additionalProperties": false
+      },
+      "AssemblyJob": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "assembly"
+          },
+          "inputRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          },
+          "catalogueReleaseIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "kind",
+          "inputRevision",
+          "scope",
+          "catalogueReleaseIds"
+        ],
+        "additionalProperties": false
+      },
+      "TakeoffJob": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "takeoff"
+          },
+          "inputRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          },
+          "ledger": {
+            "$ref": "#/components/schemas/TakeoffLedger"
+          },
+          "policyId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "kind",
+          "inputRevision",
+          "scope",
+          "ledger",
+          "policyId"
+        ],
+        "additionalProperties": false
+      },
+      "ExportJob": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "export"
+          },
+          "inputRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "pdf"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "inputRevision",
+          "snapshotId",
+          "format"
+        ],
+        "additionalProperties": false
+      },
+      "JobStart": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ExtractJob"
+          },
+          {
+            "$ref": "#/components/schemas/AssemblyJob"
+          },
+          {
+            "$ref": "#/components/schemas/TakeoffJob"
+          },
+          {
+            "$ref": "#/components/schemas/ExportJob"
+          }
+        ]
+      },
+      "JobView": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "extraction",
+              "assembly",
+              "takeoff",
+              "export"
+            ]
+          },
+          "inputRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "inputFingerprint": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "cancellation_requested",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "outputIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "issueIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "jobId",
+          "projectId",
+          "kind",
+          "inputRevision",
+          "inputFingerprint",
+          "state",
+          "outputIds",
+          "issueIds"
+        ],
+        "additionalProperties": false
+      },
+      "Contribution": {
+        "type": "object",
+        "properties": {
+          "contributionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ownerId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "groupKey": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "$ref": "#/components/schemas/QualifiedValue"
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "contributionId",
+          "ownerId",
+          "groupKey",
+          "value",
+          "sourceRefs"
+        ],
+        "additionalProperties": false
+      },
+      "GroupTotal": {
+        "type": "object",
+        "properties": {
+          "groupKey": {
+            "type": "string",
+            "minLength": 1
+          },
+          "unit": {
+            "$ref": "#/components/schemas/Unit"
+          },
+          "knownSubtotal": {
+            "type": "number"
+          },
+          "provisionalSubtotal": {
+            "type": "number"
+          },
+          "completeTotal": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "unknownContributionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "groupKey",
+          "unit",
+          "knownSubtotal",
+          "provisionalSubtotal",
+          "completeTotal",
+          "unknownContributionIds"
+        ],
+        "additionalProperties": false
+      },
+      "TakeoffResult": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "takeoff"
+          },
+          "resultId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "inputFingerprint": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ledger": {
+            "$ref": "#/components/schemas/TakeoffLedger"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          },
+          "contributions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Contribution"
+            },
+            "minItems": 0
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupTotal"
+            },
+            "minItems": 0
+          },
+          "issueIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "methodVersions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "kind",
+          "resultId",
+          "projectId",
+          "inputRevision",
+          "inputFingerprint",
+          "ledger",
+          "scope",
+          "contributions",
+          "groups",
+          "issueIds",
+          "methodVersions"
+        ],
+        "additionalProperties": false
+      },
+      "ProposalResult": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "proposals"
+          },
+          "resultId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "inputFingerprint": {
+            "type": "string",
+            "minLength": 1
+          },
+          "proposalIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "issueIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "kind",
+          "resultId",
+          "projectId",
+          "inputRevision",
+          "inputFingerprint",
+          "proposalIds",
+          "issueIds"
+        ],
+        "additionalProperties": false
+      },
+      "AssemblyResult": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "assembly_resolution"
+          },
+          "resultId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "inputFingerprint": {
+            "type": "string",
+            "minLength": 1
+          },
+          "candidateIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "issueIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "kind",
+          "resultId",
+          "projectId",
+          "inputRevision",
+          "inputFingerprint",
+          "candidateIds",
+          "issueIds"
+        ],
+        "additionalProperties": false
+      },
+      "ExportResult": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "export"
+          },
+          "resultId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "inputFingerprint": {
+            "type": "string",
+            "minLength": 1
+          },
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifactId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mediaType": {
+            "type": "string",
+            "enum": [
+              "application/pdf",
+              "text/csv"
+            ]
+          },
+          "issueIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "kind",
+          "resultId",
+          "projectId",
+          "inputRevision",
+          "inputFingerprint",
+          "snapshotId",
+          "artifactId",
+          "sha256",
+          "mediaType",
+          "issueIds"
+        ],
+        "additionalProperties": false
+      },
+      "Result": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/TakeoffResult"
+          },
+          {
+            "$ref": "#/components/schemas/ProposalResult"
+          },
+          {
+            "$ref": "#/components/schemas/AssemblyResult"
+          },
+          {
+            "$ref": "#/components/schemas/ExportResult"
+          }
+        ]
+      },
+      "SnapshotCreate": {
+        "type": "object",
+        "properties": {
+          "resultId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reviewDecisionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "exclusions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "policyId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "resultId",
+          "title",
+          "reviewDecisionIds",
+          "exclusions",
+          "policyId"
+        ],
+        "additionalProperties": false
+      },
+      "Snapshot": {
+        "type": "object",
+        "properties": {
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "frozenAtRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "resultId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputFingerprint": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reviewDecisionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "sourceVersionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "catalogueReleaseIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "methodVersions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "policyId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "exclusions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "manifestSha256": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "snapshotId",
+          "projectId",
+          "frozenAtRevision",
+          "resultId",
+          "inputFingerprint",
+          "title",
+          "reviewDecisionIds",
+          "sourceVersionIds",
+          "catalogueReleaseIds",
+          "methodVersions",
+          "policyId",
+          "exclusions",
+          "manifestSha256"
+        ],
+        "additionalProperties": false
+      },
+      "CancellationRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "Problem": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1
+          },
+          "instance": {
+            "type": "string",
+            "minLength": 1
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "issueIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "currentRevision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "code",
+          "issueIds"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}
