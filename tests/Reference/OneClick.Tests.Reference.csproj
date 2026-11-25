@@ -24,4 +24,8 @@
     <ProjectReference Include="..\..\src\Core\OneClick.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\sprinkler-agent-kit\fixtures\reference-network.json" Link="fixtures\reference-network.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
