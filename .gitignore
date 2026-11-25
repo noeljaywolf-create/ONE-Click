@@ -1,0 +1,19 @@
+﻿# Build
+bin/
+obj/
+*.user
+*.suo
+*.cache
+.vs/
+TestResults/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env/secrets
+.env
+*.local.json
+
+# Generated
+artifacts/
