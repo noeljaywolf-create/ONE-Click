@@ -38,6 +38,14 @@ public static class GeometryFormulas
         Applicability: "Point/segment closest point; zero-length segment -> point distance.",
         FailureHandling: "Rejects non-finite inputs; zero-length segment uses point distance.");
 
+    public static FormulaDescriptor G07 { get; } = new(
+        Id: "G07",
+        MethodVersion: "G07.1.0",
+        OutputUnit: SiUnit.Meter,
+        Formula: "arcLength=abs(radius*sweepRadians)",
+        Applicability: "Known circular arc; preserve intended sweep, not shortest arc.",
+        FailureHandling: "Returns UnknownValue when radius or sweep is unknown; rejects radius<=0, non-finite sweep, or non-finite result.");
+
     /// <summary>G01: straight 3D segment length with explicit unknown-elevation handling.</summary>
     public static TaggedValue StraightSegmentLength(
         SpatialEndpoint start,
@@ -168,6 +176,63 @@ public static class GeometryFormulas
         var distance = Guard.Finite((p - closest).Length, "distance");
         var value = new KnownValue(distance, G04.OutputUnit, sourceRefs, G04.MethodVersion);
         return new SegmentClosestPointResult(value, closest, t, denom == 0d);
+    }
+
+    /// <summary>G07: circular arc length. Preserves intended sweep, not shortest arc.</summary>
+    public static TaggedValue ArcLength(TaggedValue radius, TaggedValue sweepRadians, IReadOnlyList<string> sourceRefs)
+    {
+        ArgumentNullException.ThrowIfNull(radius);
+        ArgumentNullException.ThrowIfNull(sweepRadians);
+        ArgumentNullException.ThrowIfNull(sourceRefs);
+
+        var issues = new List<string>();
+        if (radius is UnknownValue)
+            issues.Add("radius:unknown");
+        if (sweepRadians is UnknownValue)
+            issues.Add("sweep:unknown");
+        if (issues.Count > 0)
+        {
+            return new UnknownValue(
+                G07.OutputUnit,
+                sourceRefs,
+                G07.MethodVersion,
+                "Unknown radius or sweep -> unknown arc length.",
+                issues);
+        }
+
+        var r = RequireKnown(radius, SiUnit.Meter, nameof(radius));
+        var sweep = RequireKnown(sweepRadians, SiUnit.Radian, nameof(sweepRadians));
+
+        if (r <= 0d)
+            throw new ArgumentOutOfRangeException(nameof(radius), r, "G07 requires radius > 0.");
+
+        // sweep must be finite (KnownValue already guarantees finite, but be explicit about the guard contract).
+        Guard.Finite(sweep, nameof(sweepRadians));
+
+        var length = Guard.Finite(Math.Abs(r * sweep), "arcLength");
+        return new KnownValue(length, G07.OutputUnit, sourceRefs, G07.MethodVersion);
+    }
+
+    /// <summary>G07 convenience overload for known numeric inputs.</summary>
+    public static KnownValue ArcLength(double radiusM, double sweepRadians, IReadOnlyList<string> sourceRefs)
+    {
+        Guard.Finite(radiusM, nameof(radiusM));
+        Guard.Finite(sweepRadians, nameof(sweepRadians));
+
+        var result = ArcLength(
+            new KnownValue(radiusM, SiUnit.Meter, sourceRefs, G07.MethodVersion),
+            new KnownValue(sweepRadians, SiUnit.Radian, sourceRefs, G07.MethodVersion),
+            sourceRefs);
+        return (KnownValue)result;
+    }
+
+    private static double RequireKnown(TaggedValue value, SiUnit expectedUnit, string paramName)
+    {
+        if (value is not KnownValue known)
+            throw new ArgumentException($"Expected known {expectedUnit} value.", paramName);
+        if (known.Unit != expectedUnit)
+            throw new ArgumentException($"Expected unit {expectedUnit} but got {known.Unit}.", paramName);
+        return known.Value;
     }
 
     private static void EnsureNonZeroDirection(Vector3D vector, string paramName)

@@ -11,4 +11,7 @@ public enum SiUnit
     Pascal = 3,
     CubicMeterPerSecond = 4,
     Kilogram = 5,
+    CubicMeter = 6,
+    KilogramPerCubicMeter = 7,
+    Dimensionless = 8,
 }

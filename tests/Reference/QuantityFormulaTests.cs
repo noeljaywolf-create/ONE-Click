@@ -77,6 +77,113 @@ public sealed class QuantityFormulaTests
 
         Assert.Contains("ambiguous duplicate ownership", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Q02_Packs_IndependentCase_Required13Pack5_Returns3Packs15Units()
+    {
+        var required = new KnownValue(13d, SiUnit.Dimensionless, Refs, "src");
+        var result = QuantityFormulas.Packs(required, 5d, "pack-policy:box-5", Refs);
+
+        var packs = Assert.IsType<KnownValue>(result.Packs);
+        var total = Assert.IsType<KnownValue>(result.TotalUnits);
+        Assert.Equal(3d, packs.Value);
+        Assert.Equal(SiUnit.Dimensionless, packs.Unit);
+        Assert.Equal(15d, total.Value);
+        Assert.Equal(SiUnit.Dimensionless, total.Unit);
+        Assert.Equal("Q02.1.0", packs.MethodVersion);
+        Assert.Equal("pack-policy:box-5", result.PackPolicy);
+    }
+
+    [Fact]
+    public void Q02_Allowance_ExplicitWAndPolicy_ReturnsTypedResult()
+    {
+        var basis = new KnownValue(10d, SiUnit.Meter, Refs, "src");
+        var result = QuantityFormulas.Allowance(basis, 0.1d, "waste:10pct", Refs);
+
+        var known = Assert.IsType<KnownValue>(result);
+        Assert.Equal(1d, known.Value, precision: 12);
+        Assert.Equal(SiUnit.Meter, known.Unit);
+        Assert.Equal("Q02.1.0", known.MethodVersion);
+    }
+
+    [Fact]
+    public void Q02_UnknownBasis_ReturnsUnknown()
+    {
+        var unknownBasis = new UnknownValue(SiUnit.Meter, Refs, "src", "missing basis", ["basis:missing"]);
+        var allowance = QuantityFormulas.Allowance(unknownBasis, 0.1d, "waste:10pct", Refs);
+
+        var unknownAllowance = Assert.IsType<UnknownValue>(allowance);
+        Assert.Equal(SiUnit.Meter, unknownAllowance.Unit);
+        Assert.Equal("Q02.1.0", unknownAllowance.MethodVersion);
+        Assert.Contains("basis:unknown", unknownAllowance.IssueRefs);
+
+        var packs = QuantityFormulas.Packs(unknownBasis, 5d, "pack-policy:box-5", Refs);
+        Assert.IsType<UnknownValue>(packs.Packs);
+        Assert.IsType<UnknownValue>(packs.TotalUnits);
+    }
+
+    [Fact]
+    public void Q02_InvalidPackSizeOrPolicy_FailsExplicitly()
+    {
+        var required = new KnownValue(13d, SiUnit.Dimensionless, Refs, "src");
+        Assert.Throws<ArgumentOutOfRangeException>(() => QuantityFormulas.Packs(required, 0d, "pack-policy:box-5", Refs));
+        Assert.Throws<ArgumentException>(() => QuantityFormulas.Packs(required, 5d, " ", Refs));
+    }
+
+    [Fact]
+    public void Q03_IndependentCase_DimensionalConsistency_ReturnsTypedVolumeAndMass()
+    {
+        var od = new KnownValue(2d, SiUnit.Meter, Refs, "src");
+        var id = new KnownValue(1d, SiUnit.Meter, Refs, "src");
+        var l = new KnownValue(1d, SiUnit.Meter, Refs, "src");
+        var rho = new KnownValue(1d, SiUnit.KilogramPerCubicMeter, Refs, "src");
+
+        var result = QuantityFormulas.PipeMetalMass(od, id, l, rho, Refs);
+
+        var volume = Assert.IsType<KnownValue>(result.MetalVolume);
+        var mass = Assert.IsType<KnownValue>(result.Mass);
+        var expected = Math.PI / 4d * (4d - 1d) * 1d;
+        Assert.Equal(expected, volume.Value, precision: 12);
+        Assert.Equal(SiUnit.CubicMeter, volume.Unit);
+        Assert.Equal("Q03.1.0", volume.MethodVersion);
+        Assert.Equal(expected, mass.Value, precision: 12);
+        Assert.Equal(SiUnit.Kilogram, mass.Unit);
+        Assert.Equal("Q03.1.0", mass.MethodVersion);
+    }
+
+    [Fact]
+    public void Q03_UnknownInput_ReturnsUnknowns()
+    {
+        var od = new UnknownValue(SiUnit.Meter, Refs, "src", "missing od", ["od:missing"]);
+        var id = new KnownValue(1d, SiUnit.Meter, Refs, "src");
+        var l = new KnownValue(1d, SiUnit.Meter, Refs, "src");
+        var rho = new KnownValue(7850d, SiUnit.KilogramPerCubicMeter, Refs, "src");
+
+        var result = QuantityFormulas.PipeMetalMass(od, id, l, rho, Refs);
+
+        var unknownVolume = Assert.IsType<UnknownValue>(result.MetalVolume);
+        var unknownMass = Assert.IsType<UnknownValue>(result.Mass);
+        Assert.Contains("od:unknown", unknownVolume.IssueRefs);
+        Assert.Contains("od:unknown", unknownMass.IssueRefs);
+        Assert.Null(unknownVolume.Value);
+        Assert.Null(unknownMass.Value);
+    }
+
+    [Fact]
+    public void Q03_InvalidDimensionsOrDensity_FailsExplicitly()
+    {
+        var od = new KnownValue(1d, SiUnit.Meter, Refs, "src");
+        var id = new KnownValue(1d, SiUnit.Meter, Refs, "src");
+        var l = new KnownValue(1d, SiUnit.Meter, Refs, "src");
+        var rho = new KnownValue(7850d, SiUnit.KilogramPerCubicMeter, Refs, "src");
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => QuantityFormulas.PipeMetalMass(od, id, l, rho, Refs));
+
+        var badRho = new KnownValue(0d, SiUnit.KilogramPerCubicMeter, Refs, "src");
+        var goodOd = new KnownValue(2d, SiUnit.Meter, Refs, "src");
+        var goodId = new KnownValue(1d, SiUnit.Meter, Refs, "src");
+        Assert.Throws<ArgumentOutOfRangeException>(() => QuantityFormulas.PipeMetalMass(goodOd, goodId, l, badRho, Refs));
+    }
 }
 
 internal static class DecimalDoubleTestExtensions
