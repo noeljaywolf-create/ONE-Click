@@ -81,4 +81,20 @@ for actual,expected in cases:
 assert set(spec['components']['schemas']['Ledger']['enum'])=={'route','fabrication','hydraulic','procurement'}
 assert 'hydraulic' not in spec['components']['schemas']['TakeoffLedger']['enum']
 count('ledger boundary checks')
+requirements=(ROOT/'docs/12-engineering-requirements.md').read_text(encoding='utf-8')
+req_ids=re.findall(r'^\| (ENG-\d{3}) \|',requirements,re.M)
+assert len(req_ids)==len(set(req_ids))==36
+assert set(req_ids)=={f'ENG-{n:03d}' for n in range(1,37)}
+count('engineering requirement ID coverage checks')
+release=(ROOT/'docs/14-qualification-and-release.md').read_text(encoding='utf-8')
+case_ids=re.findall(r'^\| (AC-\d{3}) \|',release,re.M)
+assert len(case_ids)==len(set(case_ids))==20
+assert set(case_ids)=={f'AC-{n:03d}' for n in range(1,21)}
+count('planned acceptance case ID coverage checks (not execution)')
+registry=(ROOT/'docs/10-research-sources.md').read_text(encoding='utf-8')
+registered=set(re.findall(r'^\| (R\d+) \|',registry,re.M))
+for path in ROOT.rglob('*.md'):
+    for group in re.findall(r'\[(R\d+(?:,R\d+)*)\]',path.read_text(encoding='utf-8')):
+        assert set(group.split(','))<=registered
+        count('registered source citation checks')
 print(json.dumps({'status':'PASS for listed limited checks','counts':counts,'limitations':['Not complete OpenAPI or JSON Schema conformance validation','No production implementation, real catalogue, UI, auth, concurrency or recovery tests','Synthetic baseline arithmetic is not real-project accuracy evidence']},indent=2))

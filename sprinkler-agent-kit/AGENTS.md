@@ -4,6 +4,8 @@
 
 Build an inspectable takeoff system whose quantities come from a reviewed physical model and versioned calculation methods. Read `README.md` and the role brief assigned to you before implementing. This file applies to this kit and, when deliberately installed there, the application repository. User instructions take precedence.
 
+Read `docs/12-engineering-requirements.md`, `docs/13-capability-and-tolerance-policy.md` and `docs/14-qualification-and-release.md` for every engineering task. Name the applicable ENG IDs, supported envelope, evidence level and acceptance cases. Implementing a renderer feature does not qualify its geometry or assemblies for released quantities.
+
 ## Non-negotiable engineering invariants
 
 1. Unknown is not zero. Preserve a tagged unknown, the issue and affected scope.
@@ -18,6 +20,9 @@ Build an inspectable takeoff system whose quantities come from a reviewed physic
 10. Changed dependencies invalidate affected results and reviews; snapshots remain immutable.
 11. Geometric feasibility, takeoff completeness and regulatory checks have separate outcomes.
 12. Runtime code and comments must not claim NFPA certification or universal accuracy.
+13. Never conflate numerical tolerance, measurement uncertainty, manufacturer fit allowance and release threshold. Store their independent policies and provenance.
+14. Known class count does not imply known product SKU. Preserve unresolved sprinkler variants and accessory ownership.
+15. Qualified capabilities are limited by named products, geometry, methods and reviewed evidence. Unsupported included scope remains visible and affects completeness.
 
 ## Working method
 

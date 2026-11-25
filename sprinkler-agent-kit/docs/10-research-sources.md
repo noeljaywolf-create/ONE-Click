@@ -2,6 +2,8 @@
 
 Checked 2026-11-24. These are primary-source method references, not endorsements or proof the proposed application is accurate. The package's module decomposition, API policy, state unions, UI indicators, release gates and fixture conventions are original design synthesis. Where the site returned no readable body, that limitation is stated. No source grants blanket permission to redistribute standards, manufacturer catalogues or symbol artwork.
 
+Engineering-baseline addendum checked 2026-11-25: R21-R23 added; R07, R10 and R12 revisited. Other entries retain their original check date. These references inform requirements; no production catalogue has been qualified.
+
 | ID | Source | Supports / limit |
 |---|---|---|
 | R01 | [OpenAPI 3.1.1](https://spec.openapis.org/oas/v3.1.1.html) | Pinned HTTP description/schema semantics; not latest-version claim |
@@ -24,6 +26,9 @@ Checked 2026-11-24. These are primary-source method references, not endorsements
 | R18 | [Victaulic 10.64](https://assets.victaulic.com/assets/uploads/literature/10.64.pdf) | Retrieved revision W, 01/2026, coupling preparation/application/separation qualifications |
 | R19 | [NIST SP 800-142](https://csrc.nist.gov/pubs/sp/800/142/final) | Interaction-test planning; not exhaustive engineering validation |
 | R20 | [NFPA 13 development record](https://www.nfpa.org/codes-and-standards/nfpa-standard-development-process/13) | Official indexed edition/update tracking; direct page no readable body on this pass; local adoption and actual rule text still required |
+| R21 | [Victaulic OGS specifications 25.01](https://assets.victaulic.com/assets/uploads/literature/25.01.pdf) | Retrieved Rev T, 03/2026, pp. 1-3 and preparation notes: separate groove/preparation fields and applicability; not a generic coupling gap or assembly qualification |
+| R22 | [Victaulic IGS specifications 25.14](https://assets.victaulic.com/assets/uploads/literature/25.14.pdf) | Retrieved Rev G, 10/2024, p. 1 dimensions/notes: distinct named interface and end preparation; no claim of OGS interchangeability |
+| R23 | [Viking sprinkler selector](https://www.vikinggroupinc.com/digital/webtools/sprinkler-selector) | Manufacturer identifies product selection attributes, part-number details, accessories and technical data; selection UI is not a full product qualification record |
 
 ## Evidence hierarchy for future changes
 

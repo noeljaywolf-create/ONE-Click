@@ -1,6 +1,8 @@
 # Sprinkler Takeoff Workstation: engineering and agent implementation kit
 
-Version: 0.1.0-design | Research checked: 2026-11-24 | Designed by Noel Chakwenya
+Version: 0.2.0-design | Engineering baseline added: 2026-11-25 | Designed by Noel Chakwenya
+
+New in this edition: [36 engineering requirement families](docs/12-engineering-requirements.md), a [capability and tolerance policy](docs/13-capability-and-tolerance-policy.md), and a [qualification/release protocol](docs/14-qualification-and-release.md) with 20 required future acceptance cases. The optional OpenAPI retains its 0.1.0-design version because its operation schemas have not changed.
 
 This is a researched design and implementation-instruction package, not a completed application, approved sprinkler design, or accuracy certification. It supersedes earlier conceptual documents where its contracts are more specific. Preserve earlier research as background; do not silently import incompatible conventions.
 
@@ -11,6 +13,7 @@ This is a researched design and implementation-instruction package, not a comple
 3. Use the [formula register](docs/04-formulas.md) and [catalogue/assembly contract](docs/06-catalogue-and-assemblies.md) for implementation.
 4. Execute work in the order in [delivery gates](docs/09-delivery-plan.md). Give each agent the appropriate [role brief](agents/README.md).
 5. Review [open decisions](docs/11-decisions.md) before selecting third-party components or making accuracy claims.
+6. Assign implementation using the [engineering task template](agents/engineering-task-template.md). Requirement IDs, capability limits and acceptance evidence are mandatory in agent handoffs.
 
 ## What is included
 

@@ -2,6 +2,8 @@
 
 Dates/effort estimates require team and catalogue scope. The gate order is a design recommendation. Work within a gate may proceed independently after contracts are stable; integration is explicit.
 
+Bind each gate to [ENG requirements](12-engineering-requirements.md), a [capability envelope](13-capability-and-tolerance-policy.md) and the [qualification protocol](14-qualification-and-release.md). Gate completion does not automatically confer a Q-level. Record actual evidence per method/product/workflow. New capability/tolerance/qualification DTOs require contract design before use.
+
 | Gate | Deliverable | Required evidence | Agent roles |
 |---|---|---|---|
 | 0 | Contract baseline, units, scope, decision log | Reviewed schemas/examples, ledger/sign consistency, acknowledged open decisions | Coordinator, contracts, QA |

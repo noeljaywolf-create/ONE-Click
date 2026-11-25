@@ -1,10 +1,10 @@
 # Package verification
 
-Checked: 2026-11-24. Run `python tools/check_contracts.py` from this directory.
+Checked: 2026-11-25. Run `python tools/check_contracts.py` from this directory.
 
 The bundled checker verifies local references, operation IDs and path parameters, required replay/precondition headers, positive and negative examples using a limited schema evaluator, local Markdown links, formula arithmetic, ledger boundaries, and the copied fixture's 21 m route / 19.77 m cut baseline. See the console report for actual counts. These checks apply to the design package only.
 
-Recorded result: PASS for 150 resolved references, 6 accepted examples, 5 rejected examples, 10 operation checks, 43 existing Markdown link targets, 6 formula arithmetic cases, the synthetic route/cut baseline and the ledger boundary check. Full output is retained in `contracts/check-results.json`.
+Recorded result: PASS for 150 resolved references, 6 accepted examples, 5 rejected examples, 10 operation checks, 53 existing Markdown link targets, 6 formula arithmetic cases, the synthetic route/cut baseline and the ledger boundary check. The checker also verifies unique sequential IDs for the 36 requirement families and 20 planned acceptance cases, plus source citation registration. These additional checks inspect documentation structure; they do not execute the planned acceptance cases. Full output is retained in `contracts/check-results.json`.
 
 The checker is deliberately **not** a complete OpenAPI or JSON Schema validator. It does not implement every standard keyword or prove the contract's business semantics. A complete pinned validator must be added to application CI before generating clients or shipping an adapter. No third-party full validator was available for this package check.
 
