@@ -153,14 +153,20 @@ public sealed class GeometryFormulaTests
         Assert.Contains("G03", ids);
         Assert.Contains("G04", ids);
         Assert.Contains("G07", ids);
+        Assert.Contains("A03", ids);
         Assert.Contains("Q01", ids);
         Assert.Contains("Q02", ids);
         Assert.Contains("Q03", ids);
+        Assert.Contains("Q04", ids);
         Assert.Equal("G01.1.0", FormulaRegister.Get("G01").MethodVersion);
         Assert.Equal(SiUnit.Radian, FormulaRegister.Get("G03").OutputUnit);
         Assert.Equal("G07.1.0", FormulaRegister.Get("G07").MethodVersion);
+        Assert.Equal("A03.1.0", FormulaRegister.Get("A03").MethodVersion);
+        Assert.Equal(SiUnit.Meter, FormulaRegister.Get("A03").OutputUnit);
         Assert.Equal("Q02.1.0", FormulaRegister.Get("Q02").MethodVersion);
         Assert.Equal("Q03.1.0", FormulaRegister.Get("Q03").MethodVersion);
+        Assert.Equal("Q04.1.0", FormulaRegister.Get("Q04").MethodVersion);
+        Assert.Equal(SiUnit.Dimensionless, FormulaRegister.Get("Q04").OutputUnit);
     }
 
     [Fact]

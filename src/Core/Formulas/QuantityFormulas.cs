@@ -1,4 +1,5 @@
-﻿using OneClick.Core.TaggedValues;
+﻿using OneClick.Core.Provenance;
+using OneClick.Core.TaggedValues;
 using OneClick.Core.Units;
 
 namespace OneClick.Core.Formulas;
@@ -74,6 +75,18 @@ public sealed record PipeMetalMassResult(
     public TaggedValue Mass { get; } = Mass ?? throw new ArgumentNullException(nameof(Mass));
 }
 
+public sealed record StockLowerBoundResult(
+    TaggedValue Sticks,
+    TaggedValue TotalCutLength,
+    KnownValue UsableStock,
+    string Limitation)
+{
+    public TaggedValue Sticks { get; } = Sticks ?? throw new ArgumentNullException(nameof(Sticks));
+    public TaggedValue TotalCutLength { get; } = TotalCutLength ?? throw new ArgumentNullException(nameof(TotalCutLength));
+    public KnownValue UsableStock { get; } = UsableStock ?? throw new ArgumentNullException(nameof(UsableStock));
+    public string Limitation { get; } = Guard.Required(Limitation, nameof(Limitation));
+}
+
 public static class QuantityFormulas
 {
     public static FormulaDescriptor Q01 { get; } = new(
@@ -99,6 +112,14 @@ public static class QuantityFormulas
         Formula: "metalVolume=pi/4*(OD^2-ID^2)*L; mass=rho*volume",
         Applicability: "Uniform ideal pipe; OD>ID>0; L>0; rho>0; prefer qualified catalogue mass for real product.",
         FailureHandling: "Returns UnknownValue when any input is unknown; rejects invalid dimensions/density or non-finite results.");
+
+    public static FormulaDescriptor Q04 { get; } = new(
+        Id: "Q04",
+        MethodVersion: "Q04.1.0",
+        OutputUnit: SiUnit.Dimensionless,
+        Formula: "ceil(sum(cutLengths)/usableStock)",
+        Applicability: "Lower bound stock count from cut lengths and usable stock length; usableStock>0; finite non-negative cut lengths.",
+        FailureHandling: "Returns UnknownValue when any included cut length is unknown; rejects non-finite/negative cut lengths or non-finite/non-positive usable stock. Result is a lower bound only and ignores fragmentation/kerf.");
 
     /// <summary>
     /// Q01 basic: sum unique owned contributions by ledger/spec/group.
@@ -334,5 +355,129 @@ public static class QuantityFormulas
         if (known.Unit != expectedUnit)
             throw new ArgumentException($"Expected unit {expectedUnit} but got {known.Unit}.", paramName);
         return known.Value;
+    }
+
+    /// <summary>
+    /// Q04: lower bound stock count. ceil(sum(cutLengths)/usableStock).
+    /// Lower bound only - ignores fragmentation/kerf and does not prove feasible packing.
+    /// </summary>
+    public static StockLowerBoundResult StockLengthLowerBound(
+        IReadOnlyList<TaggedValue> cutLengths,
+        double usableStockM,
+        IReadOnlyList<string> sourceRefs)
+    {
+        ArgumentNullException.ThrowIfNull(cutLengths);
+        ArgumentNullException.ThrowIfNull(sourceRefs);
+        Guard.Finite(usableStockM, nameof(usableStockM));
+        if (usableStockM <= 0d)
+            throw new ArgumentOutOfRangeException(nameof(usableStockM), usableStockM, "Q04 requires usableStock > 0.");
+
+        const string limitation = "Lower bound only; ignores fragmentation/kerf and does not prove feasible packing.";
+        var usableStock = new KnownValue(usableStockM, SiUnit.Meter, sourceRefs, Q04.MethodVersion);
+
+        var issues = new List<string>();
+        double total = 0d;
+        for (var i = 0; i < cutLengths.Count; i++)
+        {
+            var cut = cutLengths[i] ?? throw new ArgumentNullException(nameof(cutLengths), $"Cut length at index {i} is null.");
+            if (cut is UnknownValue)
+            {
+                issues.Add($"cut:unknown:index:{i}");
+                continue;
+            }
+
+            if (cut is not KnownValue known)
+                throw new ArgumentException($"Cut length at index {i} must be a known or unknown tagged value.", nameof(cutLengths));
+            if (known.Unit != SiUnit.Meter)
+                throw new ArgumentException($"Cut length at index {i} must be in meters, got {known.Unit}.", nameof(cutLengths));
+            if (known.Value < 0d)
+                throw new ArgumentOutOfRangeException(nameof(cutLengths), known.Value, $"Q04 cut length at index {i} must be >= 0.");
+            total = Guard.Finite(total + known.Value, "totalCutLength");
+        }
+
+        if (issues.Count > 0)
+        {
+            return new StockLowerBoundResult(
+                new UnknownValue(SiUnit.Dimensionless, sourceRefs, Q04.MethodVersion,
+                    "Unknown cut length in included scope -> unknown stock lower bound.", issues),
+                new UnknownValue(SiUnit.Meter, sourceRefs, Q04.MethodVersion,
+                    "Unknown cut length in included scope -> unknown total cut length.", issues),
+                usableStock,
+                limitation);
+        }
+
+        var rawSticks = Guard.Finite(Math.Ceiling(total / usableStockM), "sticks");
+        if (rawSticks > int.MaxValue)
+            throw new OverflowException("Q04 stick count exceeds supported integer range.");
+
+        var sticks = (int)rawSticks;
+        return new StockLowerBoundResult(
+            new KnownValue(sticks, SiUnit.Dimensionless, sourceRefs, Q04.MethodVersion),
+            new KnownValue(total, SiUnit.Meter, sourceRefs, Q04.MethodVersion),
+            usableStock,
+            limitation);
+    }
+
+    // --- Provenance-carrying overloads (Q01-Q04) ---
+
+    public static DerivedResult<QuantityAggregateResult> SumUniqueOwnedContributions(
+        IEnumerable<QuantityContribution> contributions,
+        string ledger,
+        string specGroup,
+        SiUnit unit,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = SumUniqueOwnedContributions(contributions, ledger, specGroup, unit, sourceRefs);
+        return FormulaProvenance.Wrap(value, value.Total.MethodVersion, inputs, value.Total.SourceRefs, contributionIds);
+    }
+
+    public static DerivedResult<TaggedValue> Allowance(
+        TaggedValue basis,
+        double w,
+        string wPolicy,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = Allowance(basis, w, wPolicy, sourceRefs);
+        return FormulaProvenance.WrapTagged(value, inputs, contributionIds);
+    }
+
+    public static DerivedResult<PackQuantityResult> Packs(
+        TaggedValue required,
+        double packSize,
+        string packPolicy,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = Packs(required, packSize, packPolicy, sourceRefs);
+        return FormulaProvenance.Wrap(value, value.Packs.MethodVersion, inputs, value.Packs.SourceRefs, contributionIds);
+    }
+
+    public static DerivedResult<PipeMetalMassResult> PipeMetalMass(
+        TaggedValue outerDiameterM,
+        TaggedValue innerDiameterM,
+        TaggedValue lengthM,
+        TaggedValue densityKgPerM3,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = PipeMetalMass(outerDiameterM, innerDiameterM, lengthM, densityKgPerM3, sourceRefs);
+        return FormulaProvenance.Wrap(value, value.MetalVolume.MethodVersion, inputs, value.MetalVolume.SourceRefs, contributionIds);
+    }
+
+    public static DerivedResult<StockLowerBoundResult> StockLengthLowerBound(
+        IReadOnlyList<TaggedValue> cutLengths,
+        double usableStockM,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = StockLengthLowerBound(cutLengths, usableStockM, sourceRefs);
+        return FormulaProvenance.Wrap(value, value.Sticks.MethodVersion, inputs, value.Sticks.SourceRefs, contributionIds);
     }
 }

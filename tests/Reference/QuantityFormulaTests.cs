@@ -184,6 +184,85 @@ public sealed class QuantityFormulaTests
         var goodId = new KnownValue(1d, SiUnit.Meter, Refs, "src");
         Assert.Throws<ArgumentOutOfRangeException>(() => QuantityFormulas.PipeMetalMass(goodOd, goodId, l, badRho, Refs));
     }
+
+    [Fact]
+    public void Q04_IndependentCase_Three4mCutsOn6mStock_LowerBoundIsTwoButFeasibleNeedIsThree()
+    {
+        // Doc 04-formulas Q04: "Three 4 m cuts require three 6 m sticks, not two".
+        // The formula is a lower bound only; it must not fake feasible packing.
+        var cuts = new TaggedValue[]
+        {
+            new KnownValue(4d, SiUnit.Meter, Refs, "src"),
+            new KnownValue(4d, SiUnit.Meter, Refs, "src"),
+            new KnownValue(4d, SiUnit.Meter, Refs, "src"),
+        };
+
+        var result = QuantityFormulas.StockLengthLowerBound(cuts, 6d, Refs);
+
+        var sticks = Assert.IsType<KnownValue>(result.Sticks);
+        var total = Assert.IsType<KnownValue>(result.TotalCutLength);
+        Assert.Equal(2d, sticks.Value); // ceil(12/6)=2, lower bound only
+        Assert.Equal(SiUnit.Dimensionless, sticks.Unit);
+        Assert.Equal("Q04.1.0", sticks.MethodVersion);
+        Assert.Equal(12d, total.Value, precision: 12);
+        Assert.Equal(SiUnit.Meter, total.Unit);
+        Assert.Equal(6d, result.UsableStock.Value);
+        Assert.Equal(SiUnit.Meter, result.UsableStock.Unit);
+        Assert.Contains("lower bound", result.Limitation, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("fragmentation/kerf", result.Limitation, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("feasible packing", result.Limitation, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Q04_UnknownCutLengthInIncludedScope_ReturnsUnknown()
+    {
+        var cuts = new TaggedValue[]
+        {
+            new KnownValue(4d, SiUnit.Meter, Refs, "src"),
+            new UnknownValue(SiUnit.Meter, Refs, "src", "missing cut", ["cut:missing"]),
+        };
+
+        var result = QuantityFormulas.StockLengthLowerBound(cuts, 6d, Refs);
+
+        var unknownSticks = Assert.IsType<UnknownValue>(result.Sticks);
+        var unknownTotal = Assert.IsType<UnknownValue>(result.TotalCutLength);
+        Assert.Equal(SiUnit.Dimensionless, unknownSticks.Unit);
+        Assert.Equal("Q04.1.0", unknownSticks.MethodVersion);
+        Assert.Contains("cut:unknown:index:1", unknownSticks.IssueRefs);
+        Assert.Contains("unknown", unknownSticks.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("cut:unknown:index:1", unknownTotal.IssueRefs);
+        Assert.Equal(SiUnit.Meter, unknownTotal.Unit);
+        Assert.Contains("lower bound", result.Limitation, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Q04_InvalidUsableStockOrCutLengths_FailsExplicitly()
+    {
+        var cuts = new TaggedValue[] { new KnownValue(1d, SiUnit.Meter, Refs, "src") };
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => QuantityFormulas.StockLengthLowerBound(cuts, 0d, Refs));
+        Assert.Throws<ArgumentOutOfRangeException>(() => QuantityFormulas.StockLengthLowerBound(cuts, -1d, Refs));
+        Assert.Throws<ArgumentOutOfRangeException>(() => QuantityFormulas.StockLengthLowerBound(cuts, double.NaN, Refs));
+
+        var negativeCut = new TaggedValue[] { new KnownValue(-1d, SiUnit.Meter, Refs, "src") };
+        Assert.Throws<ArgumentOutOfRangeException>(() => QuantityFormulas.StockLengthLowerBound(negativeCut, 6d, Refs));
+
+        var badUnit = new TaggedValue[] { new KnownValue(1d, SiUnit.Kilogram, Refs, "src") };
+        Assert.Throws<ArgumentException>(() => QuantityFormulas.StockLengthLowerBound(badUnit, 6d, Refs));
+    }
+
+    [Fact]
+    public void Q04_EmptyCutList_ReturnsZeroLowerBound()
+    {
+        var result = QuantityFormulas.StockLengthLowerBound(Array.Empty<TaggedValue>(), 6d, Refs);
+
+        var sticks = Assert.IsType<KnownValue>(result.Sticks);
+        var total = Assert.IsType<KnownValue>(result.TotalCutLength);
+        Assert.Equal(0d, sticks.Value);
+        Assert.Equal(0d, total.Value);
+        Assert.Equal("Q04.1.0", sticks.MethodVersion);
+        Assert.Contains("lower bound", result.Limitation, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 internal static class DecimalDoubleTestExtensions

@@ -9,9 +9,11 @@ public static class FormulaRegister
         GeometryFormulas.G03,
         GeometryFormulas.G04,
         GeometryFormulas.G07,
+        AssemblyFormulas.A03,
         QuantityFormulas.Q01,
         QuantityFormulas.Q02,
         QuantityFormulas.Q03,
+        QuantityFormulas.Q04,
     ];
 
     public static FormulaDescriptor Get(string id)

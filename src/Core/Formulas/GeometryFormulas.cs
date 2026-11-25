@@ -1,4 +1,5 @@
 ﻿using OneClick.Core.Geometry;
+using OneClick.Core.Provenance;
 using OneClick.Core.TaggedValues;
 using OneClick.Core.Units;
 
@@ -240,6 +241,95 @@ public static class GeometryFormulas
         // Components already finite by Vector3D invariant. Reject zero vector explicitly.
         if (vector.X == 0d && vector.Y == 0d && vector.Z == 0d)
             throw new ArgumentOutOfRangeException(paramName, vector, "Direction vector must be nonzero.");
+    }
+
+    // --- Provenance-carrying overloads (G01-G04, G07) ---
+
+    public static DerivedResult<TaggedValue> StraightSegmentLength(
+        SpatialEndpoint start,
+        SpatialEndpoint end,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = StraightSegmentLength(start, end, sourceRefs);
+        return FormulaProvenance.WrapTagged(value, inputs, contributionIds);
+    }
+
+    public static DerivedResult<KnownValue> StraightSegmentLength(
+        Point3D start,
+        Point3D end,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = StraightSegmentLength(start, end, sourceRefs);
+        return FormulaProvenance.WrapTagged(value, inputs, contributionIds);
+    }
+
+    public static DerivedResult<TaggedValue> PolylineLength(
+        IReadOnlyList<SpatialEndpoint> vertices,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = PolylineLength(vertices, sourceRefs);
+        return FormulaProvenance.WrapTagged(value, inputs, contributionIds);
+    }
+
+    public static DerivedResult<KnownValue> PolylineLength(
+        IReadOnlyList<Point3D> vertices,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = PolylineLength(vertices, sourceRefs);
+        return FormulaProvenance.WrapTagged(value, inputs, contributionIds);
+    }
+
+    public static DerivedResult<KnownValue> DirectionAngle(
+        Vector3D u,
+        Vector3D v,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = DirectionAngle(u, v, sourceRefs);
+        return FormulaProvenance.WrapTagged(value, inputs, contributionIds);
+    }
+
+    public static DerivedResult<SegmentClosestPointResult> PointSegmentClosestPoint(
+        Point3D p,
+        Point3D a,
+        Point3D b,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = PointSegmentClosestPoint(p, a, b, sourceRefs);
+        return FormulaProvenance.Wrap(value, value.Distance.MethodVersion, inputs, value.Distance.SourceRefs, contributionIds);
+    }
+
+    public static DerivedResult<TaggedValue> ArcLength(
+        TaggedValue radius,
+        TaggedValue sweepRadians,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = ArcLength(radius, sweepRadians, sourceRefs);
+        return FormulaProvenance.WrapTagged(value, inputs, contributionIds);
+    }
+
+    public static DerivedResult<KnownValue> ArcLength(
+        double radiusM,
+        double sweepRadians,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds)
+    {
+        var value = ArcLength(radiusM, sweepRadians, sourceRefs);
+        return FormulaProvenance.WrapTagged(value, inputs, contributionIds);
     }
 }
 
