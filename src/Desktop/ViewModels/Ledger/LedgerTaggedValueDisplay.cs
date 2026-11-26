@@ -43,8 +43,8 @@ public sealed class LedgerTaggedValueDisplay
         {
             return new LedgerTaggedValueDisplay(
                 status: "Unknown",
-                displayText: "Unknown",
-                detailText: $"{valueLabel}: unknown (no value provided).",
+                displayText: "Unknown — not zero",
+                detailText: $"{valueLabel}: unknown (no value provided). Unknown is not zero.",
                 isKnown: false,
                 isProvisional: false,
                 isUnknown: true,
@@ -69,7 +69,7 @@ public sealed class LedgerTaggedValueDisplay
             ProvisionalValue provisional => new LedgerTaggedValueDisplay(
                 status: "Provisional",
                 displayText: $"Provisional: {provisional.Value.ToString("0.###", CultureInfo.InvariantCulture)} {unit}",
-                detailText: $"{valueLabel}: provisional {provisional.Value.ToString("0.###", CultureInfo.InvariantCulture)} {unit}. Assumptions: {FormatRefs(provisional.AssumptionRefs)}.",
+                detailText: $"{valueLabel}: provisional {provisional.Value.ToString("0.###", CultureInfo.InvariantCulture)} {unit}. Assumptions: {FormatRefs(provisional.AssumptionRefs)}. Issues: {FormatRefs(provisional.IssueRefs)}.",
                 isKnown: false,
                 isProvisional: true,
                 isUnknown: false,
@@ -78,7 +78,7 @@ public sealed class LedgerTaggedValueDisplay
 
             UnknownValue unknown => new LedgerTaggedValueDisplay(
                 status: "Unknown",
-                displayText: $"Unknown ({unit})",
+                displayText: $"Unknown ({unit}) — not zero",
                 detailText: $"{valueLabel}: unknown. Reason: {unknown.Reason} Issues: {FormatRefs(unknown.IssueRefs)}.",
                 isKnown: false,
                 isProvisional: false,
@@ -88,7 +88,7 @@ public sealed class LedgerTaggedValueDisplay
 
             _ => new LedgerTaggedValueDisplay(
                 status: "Unknown",
-                displayText: $"Unknown ({unit})",
+                displayText: $"Unknown ({unit}) — not zero",
                 detailText: $"{valueLabel}: unsupported tagged value type '{value.GetType().Name}'; treated as unknown for display.",
                 isKnown: false,
                 isProvisional: false,

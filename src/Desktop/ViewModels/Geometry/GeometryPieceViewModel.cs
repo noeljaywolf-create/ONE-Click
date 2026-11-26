@@ -46,22 +46,48 @@ public sealed class GeometryPieceViewModel
         }
     }
 
+    public string ElevationStatusDetail
+    {
+        get
+        {
+            if (HasUnknownElevation) return "Unknown Z (unresolved, not zero)";
+            if (HasProvisionalElevation) return "Provisional Z (assumed, not confirmed)";
+            return "Known Z";
+        }
+    }
+
+    public string LabelText
+    {
+        get
+        {
+            if (HasUnknownElevation) return $"{Id} [Z unknown]";
+            if (HasProvisionalElevation) return $"{Id} [Z provisional]";
+            return Id;
+        }
+    }
+
     public string DisplayLabel => $"{Id} ({Group})";
 
     public string ToolTip =>
         $"{Id} [{Group}]\n" +
-        $"Start: ({StartX:0.###}, {StartY:0.###}, {StartZ:0.###}) m\n" +
-        $"End: ({EndX:0.###}, {EndY:0.###}, {EndZ:0.###}) m\n" +
+        $"Elevation status: {ElevationStatusDetail}\n" +
+        $"Start (X,Y,Z): ({StartX:0.###}, {StartY:0.###}, {FormatZ(StartZ, StartElevation)}) m\n" +
+        $"End (X,Y,Z): ({EndX:0.###}, {EndY:0.###}, {FormatZ(EndZ, EndElevation)}) m\n" +
         $"Start elevation: {DescribeElevation(StartElevation)}\n" +
         $"End elevation: {DescribeElevation(EndElevation)}";
+
+    private static string FormatZ(double z, TaggedValue elevation)
+    {
+        return elevation is UnknownValue ? "unknown" : $"{z:0.###}";
+    }
 
     private static string DescribeElevation(TaggedValue value)
     {
         return value switch
         {
-            KnownValue known => $"{known.Value:0.###} {known.Unit}",
-            ProvisionalValue provisional => $"{provisional.Value:0.###} {provisional.Unit} (provisional)",
-            UnknownValue unknown => $"UNKNOWN ({unknown.Reason})",
+            KnownValue known => $"{known.Value:0.###} {known.Unit} (known)",
+            ProvisionalValue provisional => $"{provisional.Value:0.###} {provisional.Unit} (provisional, not confirmed)",
+            UnknownValue unknown => $"UNKNOWN - unresolved, not zero ({unknown.Reason})",
             _ => value.GetType().Name
         };
     }

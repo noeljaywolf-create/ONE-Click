@@ -45,10 +45,12 @@ public partial class GeometryView : UserControl
         new PropertyMetadata("No geometry loaded."));
 
     private static readonly Brush KnownBrush = CreateFrozenBrush(Color.FromRgb(0x2E, 0x6D, 0xA4));
-    private static readonly Brush UnknownBrush = CreateFrozenBrush(Color.FromRgb(0xCC, 0x7A, 0x00));
+    private static readonly Brush ProvisionalBrush = CreateFrozenBrush(Color.FromRgb(0xCC, 0x7A, 0x00));
+    private static readonly Brush UnknownBrush = CreateFrozenBrush(Color.FromRgb(0xC6, 0x28, 0x28));
     private static readonly Brush SelectedBrush = CreateFrozenBrush(Color.FromRgb(0x1F, 0x8F, 0x3A));
     private static readonly Brush LabelBrush = CreateFrozenBrush(Color.FromRgb(0x33, 0x33, 0x33));
-    private static readonly Brush UnknownLabelBrush = CreateFrozenBrush(Color.FromRgb(0x8A, 0x4B, 0x00));
+    private static readonly Brush ProvisionalLabelBrush = CreateFrozenBrush(Color.FromRgb(0x8A, 0x4B, 0x00));
+    private static readonly Brush UnknownLabelBrush = CreateFrozenBrush(Color.FromRgb(0x8E, 0x00, 0x00));
 
     private readonly Dictionary<string, GeometryPieceViewModel> _pieceById = new(StringComparer.Ordinal);
     private INotifyCollectionChanged? _observedCollection;
@@ -205,7 +207,9 @@ public partial class GeometryView : UserControl
             return;
         }
 
-        SelectionText.Text = $"Selected: {selected.Id} [{selected.Group}] - {selected.ElevationStatus}";
+        SelectionText.Text =
+            $"Selected: {selected.Id} [{selected.Group}] | {selected.ElevationStatusDetail} | " +
+            $"Start ({selected.StartX:0.###}, {selected.StartY:0.###}) m | End ({selected.EndX:0.###}, {selected.EndY:0.###}) m";
     }
 
     private void DrawingCanvas_OnSizeChanged(object sender, SizeChangedEventArgs e)
@@ -264,18 +268,34 @@ public partial class GeometryView : UserControl
 
         var unknownCount = pieces.Count(p => p.HasUnknownElevation);
         var provisionalCount = pieces.Count(p => p.HasProvisionalElevation && !p.HasUnknownElevation);
-        var status = $"{pieces.Count} piece(s)";
-        if (unknownCount > 0) status += $", {unknownCount} unknown Z";
-        if (provisionalCount > 0) status += $", {provisionalCount} provisional Z";
+        var knownCount = pieces.Count - unknownCount - provisionalCount;
+
+        var status =
+            $"{pieces.Count} piece(s): {knownCount} known Z, {provisionalCount} provisional Z, {unknownCount} unknown Z";
+        if (unknownCount > 0)
+            status += " (unknown elevation is unresolved, not zero)";
+        if (!string.IsNullOrWhiteSpace(SelectedPieceId))
+            status += $"; selected: {SelectedPieceId}";
         SetCurrentValue(StatusTextProperty, status);
 
         if (!TryGetTransform(pieces, DrawingCanvas.ActualWidth, DrawingCanvas.ActualHeight, out var transform))
             return;
 
-        foreach (var piece in pieces.OrderBy(p => string.Equals(p.Id, SelectedPieceId, StringComparison.Ordinal) ? 1 : 0))
+        foreach (var piece in pieces.OrderBy(GetDrawOrder).ThenBy(p => p.Id, StringComparer.Ordinal))
         {
             DrawPiece(piece, transform);
         }
+    }
+
+    private int GetDrawOrder(GeometryPieceViewModel piece)
+    {
+        if (string.Equals(piece.Id, SelectedPieceId, StringComparison.Ordinal))
+            return 3;
+        if (piece.HasUnknownElevation)
+            return 2;
+        if (piece.HasProvisionalElevation)
+            return 1;
+        return 0;
     }
 
     private void DrawPiece(GeometryPieceViewModel piece, RenderTransformData transform)
@@ -283,9 +303,8 @@ public partial class GeometryView : UserControl
         var a = WorldToScreen(piece.StartX, piece.StartY, transform);
         var b = WorldToScreen(piece.EndX, piece.EndY, transform);
         var isSelected = string.Equals(piece.Id, SelectedPieceId, StringComparison.Ordinal);
-        var hasUnknownOrProvisional = piece.HasUnknownElevation || piece.HasProvisionalElevation;
 
-        var stroke = isSelected ? SelectedBrush : hasUnknownOrProvisional ? UnknownBrush : KnownBrush;
+        var stroke = GetStroke(piece, isSelected);
         var thickness = isSelected ? 3.0 : 2.0;
 
         var line = new Line
@@ -303,9 +322,12 @@ public partial class GeometryView : UserControl
             SnapsToDevicePixels = true,
         };
 
-        if (hasUnknownOrProvisional && !isSelected)
+        if (!isSelected)
         {
-            line.StrokeDashArray = piece.HasUnknownElevation ? new DoubleCollection { 3, 2 } : new DoubleCollection { 1, 2 };
+            if (piece.HasUnknownElevation)
+                line.StrokeDashArray = new DoubleCollection { 3, 2 };
+            else if (piece.HasProvisionalElevation)
+                line.StrokeDashArray = new DoubleCollection { 1, 2 };
         }
 
         DrawingCanvas.Children.Add(line);
@@ -316,20 +338,46 @@ public partial class GeometryView : UserControl
         if (ShowLabels)
         {
             var mid = new Point((a.X + b.X) / 2.0, (a.Y + b.Y) / 2.0);
+            var labelBrush = piece.HasUnknownElevation
+                ? UnknownLabelBrush
+                : piece.HasProvisionalElevation
+                    ? ProvisionalLabelBrush
+                    : LabelBrush;
+
             var label = new TextBlock
             {
-                Text = hasUnknownOrProvisional ? $"{piece.Id} !" : piece.Id,
+                Text = piece.LabelText,
                 FontSize = 11,
-                Foreground = hasUnknownOrProvisional ? UnknownLabelBrush : LabelBrush,
-                Background = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
-                Padding = new Thickness(2, 0, 2, 0),
+                Foreground = labelBrush,
+                Background = new SolidColorBrush(Color.FromArgb(0xD8, 0xFF, 0xFF, 0xFF)),
+                Padding = new Thickness(3, 1, 3, 1),
                 IsHitTestVisible = false,
                 ToolTip = piece.ToolTip,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 180,
             };
-            Canvas.SetLeft(label, mid.X + 4);
-            Canvas.SetTop(label, mid.Y - 14);
+
+            label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            var desired = label.DesiredSize;
+            var left = mid.X + 6;
+            var top = mid.Y - desired.Height - 6;
+            var maxLeft = Math.Max(4, DrawingCanvas.ActualWidth - desired.Width - 4);
+            var maxTop = Math.Max(4, DrawingCanvas.ActualHeight - desired.Height - 4);
+            left = Math.Clamp(left, 4, maxLeft);
+            top = Math.Clamp(top, 4, maxTop);
+
+            Canvas.SetLeft(label, left);
+            Canvas.SetTop(label, top);
             DrawingCanvas.Children.Add(label);
         }
+    }
+
+    private static Brush GetStroke(GeometryPieceViewModel piece, bool isSelected)
+    {
+        if (isSelected) return SelectedBrush;
+        if (piece.HasUnknownElevation) return UnknownBrush;
+        if (piece.HasProvisionalElevation) return ProvisionalBrush;
+        return KnownBrush;
     }
 
     private void DrawEndpoint(Point point, Brush brush, double radius, string toolTip)
@@ -370,10 +418,12 @@ public partial class GeometryView : UserControl
 
         var spanX = Math.Max(maxX - minX, 0.001);
         var spanY = Math.Max(maxY - minY, 0.001);
-        const double padding = 24.0;
+        const double padding = 28.0;
         var usableWidth = Math.Max(10.0, width - padding * 2);
         var usableHeight = Math.Max(10.0, height - padding * 2);
         var scale = Math.Min(usableWidth / spanX, usableHeight / spanY);
+        // Guard against degenerate spans producing an extreme zoom.
+        scale = Math.Min(scale, 200.0);
 
         // Center content within available space.
         var contentWidth = spanX * scale;

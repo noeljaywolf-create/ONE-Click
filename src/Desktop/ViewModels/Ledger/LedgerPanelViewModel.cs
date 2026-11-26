@@ -11,17 +11,21 @@ public sealed class LedgerPanelViewModel : ViewModelBase
     private LedgerElevationEnd _selectedElevationEnd = LedgerElevationEnd.Start;
     private string _elevationValueText = string.Empty;
     private string _statusMessage = "Load a project state to view route and cut ledgers.";
+    private bool _isStatusError;
     private LedgerTaggedValueDisplay _routeTotal = LedgerTaggedValueDisplay.FromTaggedValue(null, "Route total");
     private LedgerTaggedValueDisplay _cutTotal = LedgerTaggedValueDisplay.FromTaggedValue(null, "Cut total");
     private string _issuesSummary = "No issues.";
+    private string _routeBreakdownSummary = "Known: 0, Provisional: 0, Unknown: 0";
+    private string _cutBreakdownSummary = "Known: 0, Provisional: 0, Unknown: 0";
+    private string _elevationInputError = string.Empty;
     private bool _isBusy;
     private ICommand _changeElevationCommand;
     private ICommand _makeElevationUnknownCommand;
 
     public LedgerPanelViewModel()
     {
-        _changeElevationCommand = new RelayCommand(async () => await ChangeElevationAsync(), () => CanEditSelectedPiece);
-        _makeElevationUnknownCommand = new RelayCommand(async () => await MakeElevationUnknownAsync(), () => CanEditSelectedPiece);
+        _changeElevationCommand = new RelayCommand(async () => await ChangeElevationAsync(), () => CanSetKnownElevation);
+        _makeElevationUnknownCommand = new RelayCommand(async () => await MakeElevationUnknownAsync(), () => CanMakeUnknownElevation);
     }
 
     public ObservableCollection<LedgerPieceRowViewModel> Pieces { get; } = new();
@@ -34,14 +38,8 @@ public sealed class LedgerPanelViewModel : ViewModelBase
             if (!SetProperty(ref _selectedPiece, value))
                 return;
 
-            if (value is not null)
-            {
-                // Pre-fill elevation input with the selected end's current known/provisional value when available.
-                var display = SelectedElevationEnd == LedgerElevationEnd.Start ? value.StartElevation : value.EndElevation;
-                ElevationValueText = display.NumericValue?.ToString("0.###", CultureInfo.InvariantCulture) ?? string.Empty;
-            }
-
-            RaisePropertyChanged(nameof(CanEditSelectedPiece));
+            SyncElevationInputFromSelection();
+            RaiseSelectionProperties();
             RaiseCanExecuteChanged();
         }
     }
@@ -54,11 +52,8 @@ public sealed class LedgerPanelViewModel : ViewModelBase
             if (!SetProperty(ref _selectedElevationEnd, value))
                 return;
 
-            if (SelectedPiece is not null)
-            {
-                var display = value == LedgerElevationEnd.Start ? SelectedPiece.StartElevation : SelectedPiece.EndElevation;
-                ElevationValueText = display.NumericValue?.ToString("0.###", CultureInfo.InvariantCulture) ?? string.Empty;
-            }
+            SyncElevationInputFromSelection();
+            RaiseSelectionProperties();
         }
     }
 
@@ -71,13 +66,26 @@ public sealed class LedgerPanelViewModel : ViewModelBase
     public string ElevationValueText
     {
         get => _elevationValueText;
-        set => SetProperty(ref _elevationValueText, value);
+        set
+        {
+            if (!SetProperty(ref _elevationValueText, value))
+                return;
+
+            ValidateElevationInput();
+            RaiseCanExecuteChanged();
+        }
     }
 
     public string StatusMessage
     {
         get => _statusMessage;
         set => SetProperty(ref _statusMessage, value);
+    }
+
+    public bool IsStatusError
+    {
+        get => _isStatusError;
+        private set => SetProperty(ref _isStatusError, value);
     }
 
     public LedgerTaggedValueDisplay RouteTotal
@@ -98,6 +106,34 @@ public sealed class LedgerPanelViewModel : ViewModelBase
         private set => SetProperty(ref _issuesSummary, value);
     }
 
+    public string RouteBreakdownSummary
+    {
+        get => _routeBreakdownSummary;
+        private set => SetProperty(ref _routeBreakdownSummary, value);
+    }
+
+    public string CutBreakdownSummary
+    {
+        get => _cutBreakdownSummary;
+        private set => SetProperty(ref _cutBreakdownSummary, value);
+    }
+
+    public string ElevationInputError
+    {
+        get => _elevationInputError;
+        private set
+        {
+            if (!SetProperty(ref _elevationInputError, value))
+                return;
+            RaisePropertyChanged(nameof(HasElevationInputError));
+            RaisePropertyChanged(nameof(IsElevationInputValid));
+            RaisePropertyChanged(nameof(CanSetKnownElevation));
+        }
+    }
+
+    public bool HasElevationInputError => !string.IsNullOrWhiteSpace(ElevationInputError);
+    public bool IsElevationInputValid => !HasElevationInputError;
+
     public bool IsBusy
     {
         get => _isBusy;
@@ -105,11 +141,33 @@ public sealed class LedgerPanelViewModel : ViewModelBase
         {
             if (!SetProperty(ref _isBusy, value))
                 return;
+            RaiseSelectionProperties();
             RaiseCanExecuteChanged();
         }
     }
 
     public bool CanEditSelectedPiece => SelectedPiece is not null && !IsBusy;
+    public bool CanSetKnownElevation => CanEditSelectedPiece && IsElevationInputValid && !string.IsNullOrWhiteSpace(ElevationValueText);
+    public bool CanMakeUnknownElevation => CanEditSelectedPiece;
+
+    public string SelectedPieceLabel => SelectedPiece is null
+        ? "No piece selected. Select a piece row to edit elevations."
+        : $"Piece {SelectedPiece.PieceId} ({SelectedPiece.Group})";
+
+    public string SelectedEndLabel => SelectedElevationEnd == LedgerElevationEnd.Start ? "Start end" : "End end";
+
+    public LedgerTaggedValueDisplay? SelectedEndCurrentValue
+    {
+        get
+        {
+            if (SelectedPiece is null) return null;
+            return SelectedElevationEnd == LedgerElevationEnd.Start ? SelectedPiece.StartElevation : SelectedPiece.EndElevation;
+        }
+    }
+
+    public string SelectedEndCurrentValueText => SelectedEndCurrentValue?.DisplayText ?? "No selection";
+    public string SelectedEndCurrentStatusText => SelectedEndCurrentValue?.Status ?? "-";
+    public string SelectedEndCurrentDetailText => SelectedEndCurrentValue?.DetailText ?? "Select a piece and end to view its current elevation state.";
 
     /// <summary>
     /// Bindable command property for changing the selected piece elevation to a known meter value.
@@ -163,15 +221,16 @@ public sealed class LedgerPanelViewModel : ViewModelBase
 
         RouteTotal = LedgerTaggedValueDisplay.FromTaggedValue(computedLedgers.RouteTotal, "Route total");
         CutTotal = LedgerTaggedValueDisplay.FromTaggedValue(computedLedgers.CutTotal, "Cut total");
-        IssuesSummary = computedLedgers.IssueIds.Count == 0
-            ? "No issues."
-            : string.Join(", ", computedLedgers.IssueIds.Distinct(StringComparer.Ordinal));
+        UpdateBreakdowns(computedLedgers);
+
+        IssuesSummary = BuildIssuesSummary(computedLedgers);
 
         if (selectedId is not null)
             SelectedPiece = Pieces.FirstOrDefault(p => string.Equals(p.PieceId, selectedId, StringComparison.Ordinal));
+        else
+            RaiseSelectionProperties();
 
-        StatusMessage = $"Loaded {Pieces.Count} piece(s). Route/cut totals are separate ledgers; unknown is not zero.";
-        RaisePropertyChanged(nameof(CanEditSelectedPiece));
+        SetStatus($"Loaded {Pieces.Count} piece(s). Route and cut totals are separate ledgers. Unknown is never displayed as zero.", isError: false);
         RaiseCanExecuteChanged();
     }
 
@@ -185,13 +244,14 @@ public sealed class LedgerPanelViewModel : ViewModelBase
     {
         if (SelectedPiece is null)
         {
-            StatusMessage = "Select a piece before changing elevation.";
+            SetStatus("Select a piece before changing elevation.", isError: true);
             return;
         }
 
         if (!TryParseElevation(ElevationValueText, out var elevation))
         {
-            StatusMessage = "Enter a finite elevation value in meters (for example 12.5).";
+            ValidateElevationInput(forceRequired: true);
+            SetStatus(ElevationInputError.Length > 0 ? ElevationInputError : "Enter a finite elevation value in meters.", isError: true);
             return;
         }
 
@@ -208,7 +268,7 @@ public sealed class LedgerPanelViewModel : ViewModelBase
     {
         if (SelectedPiece is null)
         {
-            StatusMessage = "Select a piece before making elevation unknown.";
+            SetStatus("Select a piece before making elevation unknown.", isError: true);
             return;
         }
 
@@ -225,25 +285,61 @@ public sealed class LedgerPanelViewModel : ViewModelBase
     {
         if (OnElevationEditRequested is null)
         {
-            StatusMessage = pendingMessage + " No application handler is wired; shell must set OnElevationEditRequested or replace command properties.";
+            SetStatus(pendingMessage + " No application handler is wired; shell must set OnElevationEditRequested or replace command properties.", isError: true);
             return;
         }
 
         try
         {
             IsBusy = true;
-            StatusMessage = pendingMessage;
+            SetStatus(pendingMessage, isError: false);
             await OnElevationEditRequested(request).ConfigureAwait(true);
-            StatusMessage = pendingMessage + " Completed.";
+            SetStatus(pendingMessage + " Completed.", isError: false);
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Elevation edit failed: {ex.Message}";
+            SetStatus($"Elevation edit failed: {ex.Message}", isError: true);
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    private void SyncElevationInputFromSelection()
+    {
+        if (SelectedPiece is not null)
+        {
+            var display = SelectedElevationEnd == LedgerElevationEnd.Start ? SelectedPiece.StartElevation : SelectedPiece.EndElevation;
+            ElevationValueText = display.NumericValue?.ToString("0.###", CultureInfo.InvariantCulture) ?? string.Empty;
+        }
+
+        ValidateElevationInput();
+    }
+
+    private void ValidateElevationInput(bool forceRequired = false)
+    {
+        var text = ElevationValueText?.Trim() ?? string.Empty;
+        if (text.Length == 0)
+        {
+            ElevationInputError = forceRequired ? "Elevation is required to set a known value. Use 'Make elevation unknown' to clear it." : string.Empty;
+            return;
+        }
+
+        if (!double.TryParse(text, NumberStyles.Float | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value)
+            && !double.TryParse(text, NumberStyles.Float | NumberStyles.AllowLeadingSign, CultureInfo.CurrentCulture, out value))
+        {
+            ElevationInputError = "Enter a finite numeric elevation in meters (example: 12.5).";
+            return;
+        }
+
+        if (!double.IsFinite(value))
+        {
+            ElevationInputError = "Elevation must be a finite number in meters (NaN/Infinity are not allowed).";
+            return;
+        }
+
+        ElevationInputError = string.Empty;
     }
 
     private static bool TryParseElevation(string? text, out double value)
@@ -260,6 +356,80 @@ public sealed class LedgerPanelViewModel : ViewModelBase
         }
 
         return double.IsFinite(value);
+    }
+
+    private void UpdateBreakdowns(ProjectRouteLedgers ledgers)
+    {
+        var routeKnown = 0;
+        var routeProvisional = 0;
+        var routeUnknown = 0;
+        var cutKnown = 0;
+        var cutProvisional = 0;
+        var cutUnknown = 0;
+
+        foreach (var piece in ledgers.Pieces)
+        {
+            CountStatus(piece.RouteLength, ref routeKnown, ref routeProvisional, ref routeUnknown);
+            CountStatus(piece.CutLength, ref cutKnown, ref cutProvisional, ref cutUnknown);
+        }
+
+        RouteBreakdownSummary = FormatBreakdown(routeKnown, routeProvisional, routeUnknown);
+        CutBreakdownSummary = FormatBreakdown(cutKnown, cutProvisional, cutUnknown);
+    }
+
+    private static void CountStatus(OneClick.Core.TaggedValues.TaggedValue? value, ref int known, ref int provisional, ref int unknown)
+    {
+        switch (value)
+        {
+            case OneClick.Core.TaggedValues.KnownValue:
+                known++;
+                break;
+            case OneClick.Core.TaggedValues.ProvisionalValue:
+                provisional++;
+                break;
+            case OneClick.Core.TaggedValues.UnknownValue:
+            case null:
+                unknown++;
+                break;
+            default:
+                unknown++;
+                break;
+        }
+    }
+
+    private static string FormatBreakdown(int known, int provisional, int unknown)
+        => $"Known: {known}, Provisional: {provisional}, Unknown: {unknown}";
+
+    private static string BuildIssuesSummary(ProjectRouteLedgers ledgers)
+    {
+        var issues = ledgers.IssueIds
+            .Where(i => !string.IsNullOrWhiteSpace(i))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        if (issues.Length == 0)
+            return "No issues. Unknowns, where present, are explicitly marked and are not treated as zero.";
+
+        return $"Issues ({issues.Length}): {string.Join(", ", issues)}";
+    }
+
+    private void SetStatus(string message, bool isError)
+    {
+        StatusMessage = message;
+        IsStatusError = isError;
+    }
+
+    private void RaiseSelectionProperties()
+    {
+        RaisePropertyChanged(nameof(CanEditSelectedPiece));
+        RaisePropertyChanged(nameof(CanSetKnownElevation));
+        RaisePropertyChanged(nameof(CanMakeUnknownElevation));
+        RaisePropertyChanged(nameof(SelectedPieceLabel));
+        RaisePropertyChanged(nameof(SelectedEndLabel));
+        RaisePropertyChanged(nameof(SelectedEndCurrentValue));
+        RaisePropertyChanged(nameof(SelectedEndCurrentValueText));
+        RaisePropertyChanged(nameof(SelectedEndCurrentStatusText));
+        RaisePropertyChanged(nameof(SelectedEndCurrentDetailText));
     }
 
     private void RaiseCanExecuteChanged()

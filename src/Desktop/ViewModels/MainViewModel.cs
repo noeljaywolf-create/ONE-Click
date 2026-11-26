@@ -1,5 +1,6 @@
 ﻿using OneClick.Application.Contracts;
 using OneClick.Application.Persistence;
+using OneClick.Core.Domain;
 using OneClick.Core.Ids;
 using OneClick.Desktop.Services;
 
@@ -74,6 +75,18 @@ public sealed class MainViewModel : ViewModelBase
     {
         get => _snapshotManifestCount;
         internal set => SetProperty(ref _snapshotManifestCount, value);
+    }
+
+    public void SyncFromDomainState(ProjectDomainState state, string? statusMessage = null)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
+        ProjectRevision = state.Revision;
+        PieceCount = state.Pieces.Count;
+        SnapshotManifestCount = state.SnapshotManifests.Count;
+
+        if (!string.IsNullOrWhiteSpace(statusMessage))
+            StatusMessage = statusMessage;
     }
 
     public string KnownLimitations

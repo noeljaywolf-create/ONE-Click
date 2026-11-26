@@ -4,8 +4,28 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             d:DesignHeight="500"
+             d:DesignHeight="560"
              d:DesignWidth="980">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <Style x:Key="TaggedStatusTextStyle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#333333" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding}" Value="Unknown">
+                    <Setter Property="Foreground" Value="#8A4B00" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding}" Value="Provisional">
+                    <Setter Property="Foreground" Value="#6A5600" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding}" Value="Known">
+                    <Setter Property="Foreground" Value="#1B5E20" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
     <Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -16,7 +36,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0"
-                   Text="Route / Cut Ledger (first build slice)"
+                   Text="Route / Cut Ledger"
                    FontSize="18"
                    FontWeight="SemiBold"
                    Margin="0,0,0,8" />
@@ -31,21 +51,28 @@
 
                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
                     <TextBlock Text="Route ledger total" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding RouteTotal.Status}" Foreground="#555555" />
-                    <TextBlock Text="{Binding RouteTotal.DisplayText}" FontSize="14" />
+                    <TextBlock Text="{Binding RouteTotal.Status}" Style="{StaticResource TaggedStatusTextStyle}" />
+                    <TextBlock Text="{Binding RouteTotal.DisplayText}" FontSize="14" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding RouteBreakdownSummary}" Foreground="#555555" TextWrapping="Wrap" Margin="0,2,0,0" />
                     <TextBlock Text="Unknown is not zero." FontStyle="Italic" Foreground="#666666" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="0,0,12,0">
                     <TextBlock Text="Cut ledger total" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding CutTotal.Status}" Foreground="#555555" />
-                    <TextBlock Text="{Binding CutTotal.DisplayText}" FontSize="14" />
+                    <TextBlock Text="{Binding CutTotal.Status}" Style="{StaticResource TaggedStatusTextStyle}" />
+                    <TextBlock Text="{Binding CutTotal.DisplayText}" FontSize="14" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding CutBreakdownSummary}" Foreground="#555555" TextWrapping="Wrap" Margin="0,2,0,0" />
                     <TextBlock Text="Route and cut ledgers are separate." FontStyle="Italic" Foreground="#666666" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="2">
                     <TextBlock Text="Issues / unknowns" FontWeight="SemiBold" />
                     <TextBlock Text="{Binding IssuesSummary}" TextWrapping="Wrap" />
+                    <TextBlock Text="Known, provisional, and unknown values are kept explicit in rows and totals."
+                               Margin="0,4,0,0"
+                               Foreground="#666666"
+                               FontStyle="Italic"
+                               TextWrapping="Wrap" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -60,6 +87,18 @@
                   SelectionMode="Single"
                   Margin="0,0,0,8"
                   MinHeight="180">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding HasUnknown}" Value="True">
+                            <Setter Property="Background" Value="#FFF8E8D8" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding HasProvisional}" Value="True">
+                            <Setter Property="Background" Value="#FFFDF7D8" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Piece" Binding="{Binding PieceId}" Width="Auto" />
                 <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="Auto" />
@@ -71,63 +110,116 @@
                 <DataGridTextColumn Header="Route status" Binding="{Binding RouteLength.Status}" Width="Auto" />
                 <DataGridTextColumn Header="Cut length" Binding="{Binding CutLength.DisplayText}" Width="*" />
                 <DataGridTextColumn Header="Cut status" Binding="{Binding CutLength.Status}" Width="Auto" />
+                <DataGridTextColumn Header="Row status" Binding="{Binding StatusSummary}" Width="*" />
                 <DataGridTextColumn Header="Issues" Binding="{Binding IssueSummary}" Width="2*" />
             </DataGrid.Columns>
         </DataGrid>
 
         <GroupBox Grid.Row="3" Header="Edit selected piece elevation" Margin="0,0,0,8">
             <Grid Margin="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="160" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="160" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="140" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="140" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Selected piece:" VerticalAlignment="Center" Margin="0,0,8,0" />
-                <TextBlock Grid.Row="0" Grid.Column="1"
-                           Text="{Binding SelectedPiece.PieceId, TargetNullValue=(none)}"
+                <TextBlock Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="6"
+                           Text="{Binding SelectedPieceLabel}"
                            VerticalAlignment="Center"
-                           FontWeight="SemiBold" />
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap" />
 
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="End:" VerticalAlignment="Center" Margin="12,0,8,0" />
-                <ComboBox Grid.Row="0" Grid.Column="3"
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="End:" VerticalAlignment="Center" Margin="0,8,8,0" />
+                <ComboBox Grid.Row="1" Grid.Column="1"
+                          Margin="0,8,0,0"
                           ItemsSource="{Binding ElevationEnds}"
                           SelectedItem="{Binding SelectedElevationEnd, Mode=TwoWay}"
                           MinWidth="120" />
 
-                <TextBlock Grid.Row="0" Grid.Column="4" Text="Elevation (m):" VerticalAlignment="Center" Margin="12,0,8,0" />
-                <TextBox Grid.Row="0" Grid.Column="5"
-                         Width="120"
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="Current value:" VerticalAlignment="Center" Margin="12,8,8,0" />
+                <TextBlock Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="2"
+                           Margin="0,8,0,0"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap">
+                    <Run Text="{Binding SelectedEndCurrentStatusText, Mode=OneWay}" FontWeight="SemiBold" />
+                    <Run Text=" - " />
+                    <Run Text="{Binding SelectedEndCurrentValueText, Mode=OneWay}" />
+                </TextBlock>
+
+                <TextBlock Grid.Row="1" Grid.Column="5" Text="New elevation (m):" VerticalAlignment="Center" Margin="12,8,8,0" />
+                <TextBox Grid.Row="1" Grid.Column="6"
+                         Margin="0,8,0,0"
+                         MinWidth="120"
+                         HorizontalAlignment="Left"
                          Text="{Binding ElevationValueText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="7" Orientation="Horizontal" Margin="0,8,0,0">
-                    <Button Content="Set known elevation"
-                            Command="{Binding ChangeElevationCommand}"
-                            Padding="10,4"
-                            Margin="0,0,8,0" />
-                    <Button Content="Make elevation unknown"
-                            Command="{Binding MakeElevationUnknownCommand}"
-                            Padding="10,4"
-                            Margin="0,0,12,0" />
-                    <TextBlock Text="Unknown elevations remain unknown and do not display as zero."
-                               VerticalAlignment="Center"
-                               FontStyle="Italic"
-                               Foreground="#666666"
-                               TextWrapping="Wrap" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="7"
+                           Margin="0,6,0,0"
+                           Foreground="#666666"
+                           TextWrapping="Wrap"
+                           Text="{Binding SelectedEndCurrentDetailText}" />
+
+                <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="7" Orientation="Vertical" Margin="0,8,0,0">
+                    <WrapPanel>
+                        <Button Content="Set known elevation"
+                                Command="{Binding ChangeElevationCommand}"
+                                Padding="10,4"
+                                Margin="0,0,8,0" />
+                        <Button Content="Make elevation unknown"
+                                Command="{Binding MakeElevationUnknownCommand}"
+                                Padding="10,4"
+                                Margin="0,0,12,0" />
+                        <TextBlock VerticalAlignment="Center"
+                                   FontStyle="Italic"
+                                   Foreground="#666666"
+                                   TextWrapping="Wrap"
+                                   Text="Known values require a finite meter input. 'Make elevation unknown' preserves unknown explicitly; unknown is never displayed as zero." />
+                    </WrapPanel>
+
+                    <TextBlock Margin="0,6,0,0"
+                               Foreground="#B00020"
+                               TextWrapping="Wrap"
+                               Text="{Binding ElevationInputError}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasElevationInputError}" Value="False">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                 </StackPanel>
             </Grid>
         </GroupBox>
 
         <Border Grid.Row="4" Padding="8" BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="4">
-            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="#333333" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsStatusError}" Value="True">
+                                <Setter Property="Foreground" Value="#B00020" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
         </Border>
     </Grid>
 </UserControl>

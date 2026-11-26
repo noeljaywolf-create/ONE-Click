@@ -22,6 +22,7 @@ public sealed class SnapshotPanelViewModel : INotifyPropertyChanged
     private string _statusMessage = "No frozen snapshot. Freeze creates an immutable snapshot manifest.";
     private bool _isBusy;
     private bool _isFrozen;
+    private bool _hasStatusError;
 
     public SnapshotPanelViewModel()
     {
@@ -136,6 +137,18 @@ public sealed class SnapshotPanelViewModel : INotifyPropertyChanged
         private set { if (_statusMessage == value) return; _statusMessage = value; OnPropertyChanged(); }
     }
 
+    public bool HasStatusError
+    {
+        get => _hasStatusError;
+        private set { if (_hasStatusError == value) return; _hasStatusError = value; OnPropertyChanged(); }
+    }
+
+    private void SetStatus(string message, bool isError = false)
+    {
+        HasStatusError = isError;
+        StatusMessage = message;
+    }
+
     public ObservableCollection<string> SourceRefs { get; }
     public ObservableCollection<string> Issues { get; }
     public ObservableCollection<string> Exclusions { get; }
@@ -165,11 +178,11 @@ public sealed class SnapshotPanelViewModel : INotifyPropertyChanged
         Manifest = manifest;
         IsFrozen = manifest is not null;
         if (!string.IsNullOrWhiteSpace(statusMessage))
-            StatusMessage = statusMessage!;
+            SetStatus(statusMessage!);
         else if (manifest is not null)
-            StatusMessage = $"Frozen snapshot '{manifest.SnapshotId}' loaded. Manifest is immutable; exports preserve unknown as unknown.";
+            SetStatus($"Frozen snapshot '{manifest.SnapshotId}' loaded. Manifest is immutable; exports preserve unknown as unknown.");
         else
-            StatusMessage = "No frozen snapshot. Freeze creates an immutable snapshot manifest.";
+            SetStatus("No frozen snapshot. Freeze creates an immutable snapshot manifest.");
     }
 
     public async Task ExportJsonToPathAsync(string path)
@@ -189,28 +202,28 @@ public sealed class SnapshotPanelViewModel : INotifyPropertyChanged
         if (IsBusy) return;
         if (FreezeAction is null)
         {
-            StatusMessage = "Freeze is not wired. The shell must provide FreezeAction (SnapshotFreezeService).";
+            SetStatus("Freeze is not wired. The shell must provide FreezeAction (SnapshotFreezeService).", isError: true);
             return;
         }
 
         var snapshotId = (SnapshotIdInput ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(snapshotId))
         {
-            StatusMessage = "Snapshot ID is required before freezing.";
+            SetStatus("Snapshot ID is required before freezing.", isError: true);
             return;
         }
 
         try
         {
             IsBusy = true;
-            StatusMessage = "Freezing snapshot...";
+            SetStatus("Freezing snapshot...");
             var label = string.IsNullOrWhiteSpace(LabelInput) ? null : LabelInput.Trim();
             var manifest = await FreezeAction(snapshotId, label, CancellationToken.None).ConfigureAwait(true);
             SetManifest(manifest, $"Frozen snapshot '{manifest.SnapshotId}' at revision {manifest.ProjectRevision}. Unknown values remain unknown (not zero).");
         }
         catch (Exception ex)
         {
-            StatusMessage = "Freeze failed: " + ex.Message;
+            SetStatus("Freeze failed: " + ex.Message, isError: true);
         }
         finally
         {
@@ -244,7 +257,7 @@ public sealed class SnapshotPanelViewModel : INotifyPropertyChanged
         if (!string.IsNullOrWhiteSpace(picked))
         {
             ExportPath = picked;
-            StatusMessage = $"Export path selected: {picked}";
+            SetStatus($"Export path selected: {picked}");
         }
     }
 
@@ -255,9 +268,18 @@ public sealed class SnapshotPanelViewModel : INotifyPropertyChanged
         {
             // If user gave a directory or path without extension, make it concrete.
             if (Directory.Exists(path))
+            {
                 path = Path.Combine(path, $"snapshot-{SanitizeFileName(Manifest!.SnapshotId)}.{ext}");
-            else if (string.IsNullOrWhiteSpace(Path.GetExtension(path)))
-                path = path + "." + ext;
+            }
+            else
+            {
+                var currentExt = Path.GetExtension(path);
+                if (string.IsNullOrWhiteSpace(currentExt))
+                    path = path + "." + ext;
+                else if (!string.Equals(currentExt.TrimStart('.'), ext, StringComparison.OrdinalIgnoreCase))
+                    path = Path.ChangeExtension(path, ext);
+            }
+
             return path;
         }
 
@@ -285,11 +307,11 @@ public sealed class SnapshotPanelViewModel : INotifyPropertyChanged
             }
 
             ExportPath = fullPath;
-            StatusMessage = $"Exported {artifact.ContentType} to '{fullPath}'. Unknown values were preserved as unknown (not zero).";
+            SetStatus($"Export succeeded: {artifact.ContentType} written to '{fullPath}'. Unknown values were preserved as unknown (not zero).");
         }
         catch (Exception ex)
         {
-            StatusMessage = "Export failed: " + ex.Message;
+            SetStatus("Export failed: " + ex.Message, isError: true);
         }
         finally
         {
@@ -349,7 +371,7 @@ public sealed class SnapshotPanelViewModel : INotifyPropertyChanged
 
     private void OnCommandError(Exception ex)
     {
-        StatusMessage = "Command failed: " + ex.Message;
+        SetStatus("Command failed: " + ex.Message, isError: true);
         IsBusy = false;
     }
 

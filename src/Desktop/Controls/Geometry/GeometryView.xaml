@@ -20,18 +20,41 @@
                 <TextBlock DockPanel.Dock="Left"
                            Text="Geometry plan view (X/Y)"
                            FontWeight="SemiBold"
+                           VerticalAlignment="Center"
                            Margin="0,0,12,0" />
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Rectangle Width="14" Height="3" Fill="#FF2E6DA4" Margin="0,0,4,0" VerticalAlignment="Center" />
-                    <TextBlock Text="Known Z" Margin="0,0,10,0" VerticalAlignment="Center" />
-                    <Rectangle Width="14" Height="3" Fill="#FFCC7A00" Margin="0,0,4,0" VerticalAlignment="Center" StrokeDashArray="2 2" Stroke="#FFCC7A00" />
-                    <TextBlock Text="Unknown/Provisional Z" Margin="0,0,10,0" VerticalAlignment="Center" />
-                    <Rectangle Width="14" Height="3" Fill="#FF1F8F3A" Margin="0,0,4,0" VerticalAlignment="Center" />
-                    <TextBlock Text="Selected" VerticalAlignment="Center" />
-                </StackPanel>
+                <WrapPanel DockPanel.Dock="Right" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
+                        <Line X1="0" Y1="0" X2="14" Y2="0"
+                              Stroke="#FF2E6DA4" StrokeThickness="2"
+                              VerticalAlignment="Center" Margin="0,0,4,0" />
+                        <TextBlock Text="Known Z" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
+                        <Line X1="0" Y1="0" X2="14" Y2="0"
+                              Stroke="#FFCC7A00" StrokeThickness="2"
+                              StrokeDashArray="1 2"
+                              VerticalAlignment="Center" Margin="0,0,4,0" />
+                        <TextBlock Text="Provisional Z" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
+                        <Line X1="0" Y1="0" X2="14" Y2="0"
+                              Stroke="#FFC62828" StrokeThickness="2"
+                              StrokeDashArray="3 2"
+                              VerticalAlignment="Center" Margin="0,0,4,0" />
+                        <TextBlock Text="Unknown Z" VerticalAlignment="Center" ToolTip="Unknown elevation is unresolved; it is not zero." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Line X1="0" Y1="0" X2="14" Y2="0"
+                              Stroke="#FF1F8F3A" StrokeThickness="3"
+                              VerticalAlignment="Center" Margin="0,0,4,0" />
+                        <TextBlock Text="Selected" VerticalAlignment="Center" />
+                    </StackPanel>
+                </WrapPanel>
                 <TextBlock Text="{Binding StatusText, RelativeSource={RelativeSource AncestorType=UserControl}}"
                            Foreground="#FF555555"
-                           TextTrimming="CharacterEllipsis" />
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"
+                           ToolTip="{Binding StatusText, RelativeSource={RelativeSource AncestorType=UserControl}}" />
             </DockPanel>
         </Border>
 
@@ -54,7 +77,8 @@
             <TextBlock x:Name="SelectionText"
                        Text="Selected: none"
                        Foreground="#FF444444"
-                       TextTrimming="CharacterEllipsis" />
+                       TextTrimming="CharacterEllipsis"
+                       ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
         </Border>
     </Grid>
 </UserControl>

@@ -83,11 +83,12 @@ public sealed class GeometryViewModel : INotifyPropertyChanged
             : Pieces.FirstOrDefault(p => string.Equals(p.Id, previousSelectedId, StringComparison.Ordinal));
 
         var unknownCount = Pieces.Count(p => p.HasUnknownElevation);
+        var provisionalCount = Pieces.Count(p => p.HasProvisionalElevation && !p.HasUnknownElevation);
+        var knownCount = Pieces.Count - unknownCount - provisionalCount;
         StatusText = Pieces.Count == 0
             ? "No geometry loaded."
-            : unknownCount > 0
-                ? $"{Pieces.Count} piece(s) loaded; {unknownCount} with unknown elevation."
-                : $"{Pieces.Count} piece(s) loaded.";
+            : $"{Pieces.Count} piece(s): {knownCount} known Z, {provisionalCount} provisional Z, {unknownCount} unknown Z" +
+              (unknownCount > 0 ? " (unknown elevation is unresolved, not zero)" : string.Empty);
     }
 
     public void Clear()

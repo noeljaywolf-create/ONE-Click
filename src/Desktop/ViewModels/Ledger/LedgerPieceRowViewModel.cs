@@ -19,6 +19,7 @@ public sealed class LedgerPieceRowViewModel
 
         HasUnknown = StartElevation.IsUnknown || EndElevation.IsUnknown || RouteLength.IsUnknown || CutLength.IsUnknown;
         HasProvisional = StartElevation.IsProvisional || EndElevation.IsProvisional || RouteLength.IsProvisional || CutLength.IsProvisional;
+        IsFullyKnown = !HasUnknown && !HasProvisional;
 
         var issues = new List<string>();
         CollectIssues(issues, piece.StartElevation);
@@ -26,7 +27,9 @@ public sealed class LedgerPieceRowViewModel
         CollectIssues(issues, ledger?.RouteLength);
         CollectIssues(issues, ledger?.CutLength);
         Issues = issues.Distinct(StringComparer.Ordinal).ToArray();
-        IssueSummary = Issues.Count == 0 ? string.Empty : string.Join(", ", Issues);
+        IssueSummary = Issues.Count == 0 ? "No issues" : string.Join(", ", Issues);
+
+        StatusSummary = BuildStatusSummary();
     }
 
     public string PieceId { get; }
@@ -38,8 +41,19 @@ public sealed class LedgerPieceRowViewModel
     public string SourceRefs { get; }
     public bool HasUnknown { get; }
     public bool HasProvisional { get; }
+    public bool IsFullyKnown { get; }
     public IReadOnlyList<string> Issues { get; }
     public string IssueSummary { get; }
+    public string StatusSummary { get; }
+
+    private string BuildStatusSummary()
+    {
+        var flags = new List<string>(3);
+        if (HasUnknown) flags.Add("Unknown present");
+        if (HasProvisional) flags.Add("Provisional present");
+        if (flags.Count == 0) flags.Add("All known");
+        return string.Join("; ", flags);
+    }
 
     private static void CollectIssues(List<string> issues, TaggedValue? value)
     {
