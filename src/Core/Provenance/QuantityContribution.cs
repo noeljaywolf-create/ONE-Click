@@ -38,6 +38,23 @@ public sealed record QuantityContribution
     public IReadOnlyList<string> SourceRefs { get; }
     public string MethodVersion { get; }
 
+    /// <summary>
+    /// Creates a canonical domain contribution from a minimal Q01 aggregation input.
+    /// The aggregation record carries no contribution id, typed ledger, tagged qualified value,
+    /// source refs, or method version; callers must supply those explicitly.
+    /// Aggregation-only metadata (<c>IncludedByOwnerId</c>) is not part of the domain contract.
+    /// </summary>
+    public static QuantityContribution FromAggregationInput(
+        OneClick.Core.Formulas.QuantityContribution contribution,
+        QuantityContributionId id,
+        Ledger ledger,
+        IReadOnlyList<string> sourceRefs,
+        string methodVersion)
+    {
+        ArgumentNullException.ThrowIfNull(contribution);
+        return contribution.ToProvenance(id, ledger, sourceRefs, methodVersion);
+    }
+
     private static IReadOnlyList<string> NormalizeRefs(IReadOnlyList<string>? refs, string paramName)
     {
         ArgumentNullException.ThrowIfNull(refs, paramName);

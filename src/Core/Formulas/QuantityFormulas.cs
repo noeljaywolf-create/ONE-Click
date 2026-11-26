@@ -39,6 +39,32 @@ public sealed record QuantityContribution
     /// double-counted when that assembly owner is counted in the same ledger/spec/group.
     /// </summary>
     public string? IncludedByOwnerId { get; }
+
+    /// <summary>
+    /// Maps this Q01 aggregation input to the canonical domain-aligned contribution record.
+    /// The caller supplies identity/provenance that the minimal aggregation record does not carry.
+    /// Aggregation-only metadata (<see cref="IncludedByOwnerId"/>) is not part of the domain
+    /// contribution contract and is intentionally not mapped.
+    /// </summary>
+    public OneClick.Core.Provenance.QuantityContribution ToProvenance(
+        QuantityContributionId id,
+        Ledger ledger,
+        IReadOnlyList<string> sourceRefs,
+        string methodVersion)
+    {
+        ArgumentNullException.ThrowIfNull(sourceRefs);
+        Guard.Required(methodVersion, nameof(methodVersion));
+
+        var qualifiedValue = new KnownValue(Value, Unit, sourceRefs, methodVersion);
+        return new OneClick.Core.Provenance.QuantityContribution(
+            id,
+            OwnerId,
+            ledger,
+            SpecGroup,
+            qualifiedValue,
+            sourceRefs,
+            methodVersion);
+    }
 }
 
 public sealed record QuantityAggregateResult(

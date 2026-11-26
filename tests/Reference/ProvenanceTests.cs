@@ -2,6 +2,7 @@ using OneClick.Core.Provenance;
 using OneClick.Core.TaggedValues;
 using OneClick.Core.Units;
 
+using FormulaQuantityContribution = OneClick.Core.Formulas.QuantityContribution;
 using ProvenanceQuantityContribution = OneClick.Core.Provenance.QuantityContribution;
 
 namespace OneClick.Tests.Reference;
@@ -221,6 +222,199 @@ public sealed class ProvenanceTests
         var qualified = Assert.IsType<UnknownValue>(contribution.QualifiedValue);
         Assert.Null(qualified.Value);
         Assert.Equal("missing elevation", qualified.Reason);
+    }
+
+    [Fact]
+    public void QuantityContribution_FromAggregationInput_MapsCanonicalFields()
+    {
+        var aggregation = new FormulaQuantityContribution("route-a", "route", "main/steel", 12.5d, SiUnit.Meter);
+
+        var contribution = ProvenanceQuantityContribution.FromAggregationInput(
+            aggregation,
+            new QuantityContributionId("qc-agg-1"),
+            Ledger.Route,
+            ["obs-route-1"],
+            "Q01.1.0");
+
+        Assert.Equal("qc-agg-1", contribution.Id.Value);
+        Assert.Equal("route-a", contribution.OwnerId);
+        Assert.Equal(Ledger.Route, contribution.Ledger);
+        Assert.Equal("main/steel", contribution.GroupKey);
+        var qualified = Assert.IsType<KnownValue>(contribution.QualifiedValue);
+        Assert.Equal(12.5d, qualified.Value);
+        Assert.Equal(SiUnit.Meter, qualified.Unit);
+        Assert.Equal(["obs-route-1"], qualified.SourceRefs);
+        Assert.Equal("Q01.1.0", qualified.MethodVersion);
+        Assert.Equal(["obs-route-1"], contribution.SourceRefs);
+        Assert.Equal("Q01.1.0", contribution.MethodVersion);
+    }
+
+    [Fact]
+    public void FormulaQuantityContribution_ToProvenance_PreservesUnknownAndProvisionalSemanticsByExplicitValue()
+    {
+        // Aggregation inputs are finite known quantities; canonical mapping produces a known qualified value.
+        // Unknown/provisional semantics remain represented by TaggedValue on the canonical contribution.
+        var aggregation = new FormulaQuantityContribution("part-1", "procurement", "hanger", 0.4d, SiUnit.Meter, includedByOwnerId: "asm-1");
+        var canonicalUnknown = new ProvenanceQuantityContribution(
+            new QuantityContributionId("qc-u"),
+            aggregation.OwnerId,
+            Ledger.Procurement,
+            aggregation.SpecGroup,
+            new UnknownValue(SiUnit.Meter, ["obs-1"], "Q01.1.0", "missing measurement", ["issue-1"]),
+            ["obs-1"],
+            "Q01.1.0");
+
+        var mapped = aggregation.ToProvenance(
+            new QuantityContributionId("qc-k"),
+            Ledger.Procurement,
+            ["obs-1"],
+            "Q01.1.0");
+
+        var known = Assert.IsType<KnownValue>(mapped.QualifiedValue);
+        Assert.Equal(0.4d, known.Value);
+        var unknown = Assert.IsType<UnknownValue>(canonicalUnknown.QualifiedValue);
+        Assert.Null(unknown.Value);
+        Assert.Equal("missing measurement", unknown.Reason);
+        Assert.Contains("issue-1", unknown.IssueRefs);
+    }
+
+    [Fact]
+    public void QuantityContribution_Bridge_RejectsInvalidCanonicalContext()
+    {
+        var aggregation = new FormulaQuantityContribution("owner", "route", "group", 1d, SiUnit.Meter);
+
+        Assert.ThrowsAny<ArgumentException>(() => aggregation.ToProvenance(default, Ledger.Route, ["obs"], "Q01.1.0"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => aggregation.ToProvenance(new QuantityContributionId("qc-1"), (Ledger)999, ["obs"], "Q01.1.0"));
+        Assert.Throws<ArgumentNullException>(() => aggregation.ToProvenance(new QuantityContributionId("qc-1"), Ledger.Route, null!, "Q01.1.0"));
+        Assert.ThrowsAny<ArgumentException>(() => aggregation.ToProvenance(new QuantityContributionId("qc-1"), Ledger.Route, ["obs"], ""));
+        Assert.Throws<ArgumentNullException>(() => ProvenanceQuantityContribution.FromAggregationInput(null!, new QuantityContributionId("qc-1"), Ledger.Route, ["obs"], "Q01.1.0"));
+    }
+
+    [Fact]
+    public void CalculationResult_CarriesValueProvenanceIssuesWarningsAndContributions()
+    {
+        var provenance = CreateProvenance();
+        var contribution = new ProvenanceQuantityContribution(
+            new QuantityContributionId("qc-1"),
+            "owner",
+            Ledger.Route,
+            "group",
+            new KnownValue(1d, SiUnit.Meter, ["obs-1"], "Q01.1.0"),
+            ["obs-1"],
+            "Q01.1.0");
+
+        var result = new CalculationResult<KnownValue>(
+            new KnownValue(1d, SiUnit.Meter, ["obs-1"], "Q01.1.0"),
+            provenance,
+            warnings: ["warning:1"],
+            issues: ["issue:1"],
+            contributions: [contribution]);
+
+        Assert.IsAssignableFrom<IDerivedResult>(result);
+        Assert.Same(provenance, result.Provenance);
+        Assert.Equal(1d, result.Value.Value);
+        Assert.Equal(["warning:1"], result.Warnings);
+        Assert.Equal(["issue:1"], result.Issues);
+        Assert.Single(result.Contributions);
+        Assert.Equal("qc-1", result.Contributions[0].Id.Value);
+    }
+
+    [Fact]
+    public void CalculationResult_DefaultsOptionalCollections_AndDefensivelyCopies()
+    {
+        var warnings = new List<string> { "w1" };
+        var issues = new List<string> { "i1" };
+        var contributions = new List<ProvenanceQuantityContribution>
+        {
+            new(
+                new QuantityContributionId("qc-1"),
+                "owner",
+                Ledger.Route,
+                "group",
+                new KnownValue(1d, SiUnit.Meter, ["obs-1"], "Q01.1.0"),
+                ["obs-1"],
+                "Q01.1.0"),
+        };
+
+        var result = new CalculationResult<KnownValue>(
+            new KnownValue(1d, SiUnit.Meter, ["obs-1"], "Q01.1.0"),
+            CreateProvenance(),
+            warnings,
+            issues,
+            contributions);
+
+        warnings.Add("w2");
+        issues[0] = "mutated";
+        contributions.Clear();
+
+        Assert.Equal(["w1"], result.Warnings);
+        Assert.Equal(["i1"], result.Issues);
+        Assert.Single(result.Contributions);
+
+        var minimal = new CalculationResult<KnownValue>(
+            new KnownValue(2d, SiUnit.Meter, ["obs-1"], "Q01.1.0"),
+            CreateProvenance());
+        Assert.Empty(minimal.Warnings);
+        Assert.Empty(minimal.Issues);
+        Assert.Empty(minimal.Contributions);
+    }
+
+    [Fact]
+    public void CalculationResult_RejectsInvalidInput()
+    {
+        var provenance = CreateProvenance();
+        var value = new KnownValue(1d, SiUnit.Meter, ["obs-1"], "Q01.1.0");
+
+        Assert.Throws<ArgumentNullException>(() => new CalculationResult<KnownValue>(null!, provenance));
+        Assert.Throws<ArgumentNullException>(() => new CalculationResult<KnownValue>(value, null!));
+        Assert.ThrowsAny<ArgumentException>(() => new CalculationResult<KnownValue>(value, provenance, warnings: [" "]));
+        Assert.ThrowsAny<ArgumentException>(() => new CalculationResult<KnownValue>(value, provenance, issues: [""]));
+        Assert.Throws<ArgumentException>(() => new CalculationResult<KnownValue>(value, provenance, contributions: [null!]));
+    }
+
+    [Fact]
+    public void CalculationResult_InteropsWithDerivedResult()
+    {
+        var derived = new DerivedResult<KnownValue>(
+            new KnownValue(3d, SiUnit.Meter, ["obs-1"], "Q01.1.0"),
+            CreateProvenance());
+
+        var envelope = CalculationResult<KnownValue>.FromDerivedResult(derived, warnings: ["w"]);
+        Assert.Same(derived.Value, envelope.Value);
+        Assert.Same(derived.Provenance, envelope.Provenance);
+        Assert.Equal(["w"], envelope.Warnings);
+
+        var roundTrip = envelope.ToDerivedResult();
+        Assert.IsType<DerivedResult<KnownValue>>(roundTrip);
+        Assert.Same(envelope.Value, roundTrip.Value);
+        Assert.Same(envelope.Provenance, roundTrip.Provenance);
+
+        Assert.Throws<ArgumentNullException>(() => CalculationResult<KnownValue>.FromDerivedResult(null!));
+    }
+
+    [Fact]
+    public void CalculationResult_PreservesUnknownQualifiedContribution()
+    {
+        var unknownContribution = new ProvenanceQuantityContribution(
+            new QuantityContributionId("qc-u"),
+            "owner",
+            Ledger.Hydraulic,
+            "group",
+            new UnknownValue(SiUnit.Meter, ["obs-1"], "Q01.1.0", "missing", ["issue-1"]),
+            ["obs-1"],
+            "Q01.1.0");
+
+        var result = new CalculationResult<TaggedValue>(
+            new UnknownValue(SiUnit.Meter, ["obs-1"], "Q01.1.0", "missing", ["issue-1"]),
+            CreateProvenance(),
+            issues: ["issue-1"],
+            contributions: [unknownContribution]);
+
+        var value = Assert.IsType<UnknownValue>(result.Value);
+        Assert.Null(value.Value);
+        var contributionValue = Assert.IsType<UnknownValue>(result.Contributions[0].QualifiedValue);
+        Assert.Null(contributionValue.Value);
+        Assert.Equal("missing", contributionValue.Reason);
     }
 
     private static ResultProvenance CreateProvenance() =>
