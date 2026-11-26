@@ -1,4 +1,8 @@
 ﻿using OneClick.Application.Commands;
+using OneClick.Application.Persistence;
+using OneClick.Core.Domain;
+using OneClick.Core.TaggedValues;
+using OneClick.Core.Units;
 
 namespace OneClick.Application.Dispatch;
 
@@ -35,9 +39,157 @@ public sealed class SetCalibrationCommandHandler : PlaceholderCommandHandler<Set
     public override string CommandType => CommandTypes.SetCalibration;
 }
 
-public sealed class UpsertRouteCommandHandler : PlaceholderCommandHandler<UpsertRouteCommand>
+public sealed class UpsertRouteCommandHandler : ProjectCommandHandler<UpsertRouteCommand>
 {
+    private readonly IProjectDomainStateStore? _domainStateStore;
+
+    public UpsertRouteCommandHandler(IProjectDomainStateStore? domainStateStore = null)
+    {
+        _domainStateStore = domainStateStore;
+    }
+
     public override string CommandType => CommandTypes.UpsertRoute;
+
+    public override async Task<CommandHandlerResult> HandleAsync(
+        UpsertRouteCommand command,
+        CommandHandlerContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(context);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (_domainStateStore is null)
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                ["issue:domain-state-store:missing"]);
+        }
+
+        if (string.IsNullOrWhiteSpace(command.RouteId))
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                ["issue:upsert-route:route-id-required"]);
+        }
+
+        if (command.Vertices is null || command.Vertices.Count < 2)
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                ["issue:upsert-route:vertices-required"]);
+        }
+
+        var state = await _domainStateStore.GetAsync(context.ProjectId, cancellationToken).ConfigureAwait(false);
+        if (state is null)
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                [$"issue:project-not-found:{context.ProjectId.Value}"]);
+        }
+
+        if (!state.TryGetPiece(command.RouteId, out var piece) || piece is null)
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                [$"issue:route-not-found:{command.RouteId}"]);
+        }
+
+        var startVertex = command.Vertices[0];
+        var endVertex = command.Vertices[^1];
+
+        var sourceRefs = new[] { $"command:{context.CommandId.Value}", $"piece:{piece.Id}" };
+        var methodVersion = "upsert-route.v1";
+
+        var startElevation = ToElevation(startVertex.Z, sourceRefs, methodVersion, piece.Id, "start");
+        var endElevation = ToElevation(endVertex.Z, sourceRefs, methodVersion, piece.Id, "end");
+
+        var updatedStartM = new OneClick.Core.Geometry.Point3D(startVertex.X, startVertex.Y, startZForPoint(piece.StartM.Z, startVertex.Z));
+        var updatedEndM = new OneClick.Core.Geometry.Point3D(endVertex.X, endVertex.Y, startZForPoint(piece.EndM.Z, endVertex.Z));
+
+        var updatedPiece = new RoutePiece(
+            piece.Id,
+            updatedStartM,
+            updatedEndM,
+            piece.StartNetOffsetM,
+            piece.EndNetOffsetM,
+            piece.Group,
+            piece.SourceRefs,
+            piece.MethodVersion,
+            startElevation,
+            endElevation);
+
+        state.UpsertPiece(updatedPiece);
+
+        // Sync domain revision with committed command revision.
+        var nextRevision = context.ExpectedRevision.Value + 1;
+        if (nextRevision > state.Revision)
+            state.SetRevision(nextRevision);
+
+        await _domainStateStore.SaveAsync(state, cancellationToken).ConfigureAwait(false);
+
+        var invalidated = new List<string> { $"piece:{piece.Id}" };
+        var issues = new List<string>();
+
+        CollectElevationIssues(startElevation, piece.Id, "start", issues);
+        CollectElevationIssues(endElevation, piece.Id, "end", issues);
+
+        // Invalidate affected ledgers when elevation/length may have changed.
+        invalidated.Add($"ledger:route:{piece.Id}");
+        invalidated.Add($"ledger:cut:{piece.Id}");
+
+        return new CommandHandlerResult(
+            Array.Empty<string>(),
+            invalidated,
+            issues);
+    }
+
+    private static TaggedValue ToElevation(double? z, string[] sourceRefs, string methodVersion, string pieceId, string endName)
+    {
+        if (z.HasValue)
+        {
+            if (!double.IsFinite(z.Value))
+                throw new ArgumentOutOfRangeException(nameof(z), z, "Elevation must be finite when provided.");
+            return new KnownValue(z.Value, SiUnit.Meter, sourceRefs, methodVersion);
+        }
+
+        return new UnknownValue(
+            SiUnit.Meter,
+            sourceRefs,
+            methodVersion,
+            $"Elevation is unknown for {endName} of piece '{pieceId}'.",
+            [$"issue:elevation-unknown:{pieceId}:{endName}"]);
+    }
+
+    private static double startZForPoint(double previousZ, double? commandedZ)
+    {
+        if (commandedZ.HasValue)
+        {
+            if (!double.IsFinite(commandedZ.Value))
+                throw new ArgumentOutOfRangeException(nameof(commandedZ), commandedZ, "Elevation must be finite when provided.");
+            return commandedZ.Value;
+        }
+
+        // Point3D cannot represent unknown; keep previous numeric Z but authoritative elevation is UnknownValue.
+        return previousZ;
+    }
+
+    private static void CollectElevationIssues(TaggedValue elevation, string pieceId, string endName, List<string> issues)
+    {
+        if (elevation is UnknownValue unknown)
+        {
+            foreach (var issue in unknown.IssueRefs)
+            {
+                if (!issues.Contains(issue, StringComparer.Ordinal))
+                    issues.Add(issue);
+            }
+        }
+    }
 }
 
 public sealed class PlaceComponentCommandHandler : PlaceholderCommandHandler<PlaceComponentCommand>
@@ -65,7 +217,62 @@ public sealed class SelectAssemblyCommandHandler : PlaceholderCommandHandler<Sel
     public override string CommandType => CommandTypes.SelectAssembly;
 }
 
-public sealed class ReleaseSnapshotCommandHandler : PlaceholderCommandHandler<ReleaseSnapshotCommand>
+public sealed class ReleaseSnapshotCommandHandler : ProjectCommandHandler<ReleaseSnapshotCommand>
 {
+    private readonly IProjectDomainStateStore? _domainStateStore;
+
+    public ReleaseSnapshotCommandHandler(IProjectDomainStateStore? domainStateStore = null)
+    {
+        _domainStateStore = domainStateStore;
+    }
+
     public override string CommandType => CommandTypes.ReleaseSnapshot;
+
+    public override async Task<CommandHandlerResult> HandleAsync(
+        ReleaseSnapshotCommand command,
+        CommandHandlerContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(context);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (_domainStateStore is null)
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                ["issue:domain-state-store:missing"]);
+        }
+
+        var state = await _domainStateStore.GetAsync(context.ProjectId, cancellationToken).ConfigureAwait(false);
+        if (state is null)
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                [$"issue:project-not-found:{context.ProjectId.Value}"]);
+        }
+
+        var manifest = state.SnapshotManifests.FirstOrDefault(m => string.Equals(m.SnapshotId, command.SnapshotId, StringComparison.Ordinal));
+        if (manifest is null)
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                [$"issue:snapshot-not-found:{command.SnapshotId}"]);
+        }
+
+        var releaseId = $"release:{command.SnapshotId}:{context.CommandId.Value}";
+        var issues = new List<string>();
+        if (manifest.UnknownQuantities.Count > 0)
+            issues.Add("issue:release:unknown-quantities-present");
+        if (manifest.Issues.Count > 0)
+            issues.Add("issue:release:snapshot-has-issues");
+
+        return new CommandHandlerResult(
+            [releaseId],
+            Array.Empty<string>(),
+            issues);
+    }
 }

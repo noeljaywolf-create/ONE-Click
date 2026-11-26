@@ -38,14 +38,23 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
     private readonly ICommandTransactionFactory _transactionFactory;
     private readonly ICommandOutboxWriter _outbox;
     private readonly ICommandDispatcher _dispatcher;
+    private readonly IProjectDomainStateStore? _domainStateStore;
 
     public InMemoryProjectCommandService(ICommandBoundaryValidator? validator = null)
+        : this(validator, domainStateStore: null)
+    {
+    }
+
+    public InMemoryProjectCommandService(
+        ICommandBoundaryValidator? validator,
+        IProjectDomainStateStore? domainStateStore)
         : this(
             validator,
             CreateDefaultInMemoryStore(out var sync),
             new InMemoryCommandTransactionFactory(sync),
             new InMemoryCommandOutboxWriter(),
-            CreateDefaultDispatcher())
+            CreateDefaultDispatcher(domainStateStore),
+            domainStateStore)
     {
     }
 
@@ -55,12 +64,24 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
         ICommandTransactionFactory transactionFactory,
         ICommandOutboxWriter outbox,
         ICommandDispatcher dispatcher)
+        : this(validator, store, transactionFactory, outbox, dispatcher, domainStateStore: null)
+    {
+    }
+
+    public InMemoryProjectCommandService(
+        ICommandBoundaryValidator? validator,
+        IProjectCommandStore store,
+        ICommandTransactionFactory transactionFactory,
+        ICommandOutboxWriter outbox,
+        ICommandDispatcher dispatcher,
+        IProjectDomainStateStore? domainStateStore)
     {
         _validator = validator ?? new CommandBoundaryValidator();
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _transactionFactory = transactionFactory ?? throw new ArgumentNullException(nameof(transactionFactory));
         _outbox = outbox ?? throw new ArgumentNullException(nameof(outbox));
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+        _domainStateStore = domainStateStore;
     }
 
     /// <summary>
@@ -69,6 +90,11 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
     public ProjectView CreateProject(ProjectId projectId)
     {
         _store.CreateProjectAsync(projectId).GetAwaiter().GetResult();
+        if (_domainStateStore is not null)
+        {
+            var state = new OneClick.Core.Domain.ProjectDomainState(projectId, revision: 0);
+            _domainStateStore.SaveAsync(state).GetAwaiter().GetResult();
+        }
         return BuildView(projectId.Value, ProjectRevision.Initial);
     }
 
@@ -215,18 +241,18 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
         return new InMemoryProjectCommandStore(sync);
     }
 
-    private static ICommandDispatcher CreateDefaultDispatcher() =>
+    private static ICommandDispatcher CreateDefaultDispatcher(IProjectDomainStateStore? domainStateStore) =>
         new CommandDispatcher(
         [
             new ImportDocumentCommandHandler(),
             new SetCalibrationCommandHandler(),
-            new UpsertRouteCommandHandler(),
+            new UpsertRouteCommandHandler(domainStateStore),
             new PlaceComponentCommandHandler(),
             new ConnectPortsCommandHandler(),
             new AcceptProposalCommandHandler(),
             new ReviewPropertyCommandHandler(),
             new SelectAssemblyCommandHandler(),
-            new ReleaseSnapshotCommandHandler(),
+            new ReleaseSnapshotCommandHandler(domainStateStore),
         ]);
 
     private static ApplicationProblemDetails Malformed(string detail, string field) =>

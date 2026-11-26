@@ -45,13 +45,11 @@ public sealed class CommandDispatchTests
         {
             new ImportDocumentCommandHandler(),
             new SetCalibrationCommandHandler(),
-            new UpsertRouteCommandHandler(),
             new PlaceComponentCommandHandler(),
             new ConnectPortsCommandHandler(),
             new AcceptProposalCommandHandler(),
             new ReviewPropertyCommandHandler(),
             new SelectAssemblyCommandHandler(),
-            new ReleaseSnapshotCommandHandler(),
         };
 
         var dispatcher = new CommandDispatcher(handlers);
@@ -61,13 +59,11 @@ public sealed class CommandDispatchTests
         [
             new ImportDocumentCommand("upload-1", "Plan", "a.pdf"),
             new SetCalibrationCommand("region-1", [new CalibrationControlPoint(0, 0, 0, 0, null)], null),
-            new UpsertRouteCommand(null, [new RouteVertex(0, 0, null), new RouteVertex(1, 1, null)], null, null, null),
             new PlaceComponentCommand(null, "part-1", "rel-1", new ComponentPlacement(1, 2, null, 0), null),
             new ConnectPortsCommand("port-a", "port-b", null),
             new AcceptProposalCommand("proposal-1", null),
             new ReviewPropertyCommand("prop-1", ReviewState.Accepted, "ok"),
             new SelectAssemblyCommand("ctx-1", "cand-1", null),
-            new ReleaseSnapshotCommand("snap-1", "takeoff-release", null),
         ];
 
         foreach (var command in commands)
@@ -78,6 +74,21 @@ public sealed class CommandDispatchTests
             Assert.Empty(result.InvalidatedIds);
             Assert.Equal([$"issue:placeholder:{command.CommandType}"], result.IssueIds);
         }
+    }
+
+    [Fact]
+    public async Task UpsertRoute_Handler_Without_DomainStateStore_Returns_Structured_Issue()
+    {
+        var dispatcher = new CommandDispatcher([new UpsertRouteCommandHandler()]);
+        var context = CreateContext();
+
+        var result = await dispatcher.DispatchAsync(
+            new UpsertRouteCommand("M1", [new RouteVertex(0, 0, 1), new RouteVertex(1, 1, 1)], null, null, null),
+            context);
+
+        Assert.Empty(result.CreatedIds);
+        Assert.Empty(result.InvalidatedIds);
+        Assert.Equal(["issue:domain-state-store:missing"], result.IssueIds);
     }
 
     [Fact]
