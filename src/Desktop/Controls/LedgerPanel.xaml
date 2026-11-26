@@ -1,0 +1,133 @@
+<UserControl x:Class="OneClick.Desktop.Controls.LedgerPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="500"
+             d:DesignWidth="980">
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Route / Cut Ledger (first build slice)"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,8" />
+
+        <Border Grid.Row="1" Padding="8" Margin="0,0,0,8" BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="2*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <TextBlock Text="Route ledger total" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding RouteTotal.Status}" Foreground="#555555" />
+                    <TextBlock Text="{Binding RouteTotal.DisplayText}" FontSize="14" />
+                    <TextBlock Text="Unknown is not zero." FontStyle="Italic" Foreground="#666666" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                    <TextBlock Text="Cut ledger total" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding CutTotal.Status}" Foreground="#555555" />
+                    <TextBlock Text="{Binding CutTotal.DisplayText}" FontSize="14" />
+                    <TextBlock Text="Route and cut ledgers are separate." FontStyle="Italic" Foreground="#666666" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Issues / unknowns" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding IssuesSummary}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <DataGrid Grid.Row="2"
+                  ItemsSource="{Binding Pieces}"
+                  SelectedItem="{Binding SelectedPiece, Mode=TwoWay}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  SelectionMode="Single"
+                  Margin="0,0,0,8"
+                  MinHeight="180">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Piece" Binding="{Binding PieceId}" Width="Auto" />
+                <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="Auto" />
+                <DataGridTextColumn Header="Start elevation" Binding="{Binding StartElevation.DisplayText}" Width="*" />
+                <DataGridTextColumn Header="Start status" Binding="{Binding StartElevation.Status}" Width="Auto" />
+                <DataGridTextColumn Header="End elevation" Binding="{Binding EndElevation.DisplayText}" Width="*" />
+                <DataGridTextColumn Header="End status" Binding="{Binding EndElevation.Status}" Width="Auto" />
+                <DataGridTextColumn Header="Route length" Binding="{Binding RouteLength.DisplayText}" Width="*" />
+                <DataGridTextColumn Header="Route status" Binding="{Binding RouteLength.Status}" Width="Auto" />
+                <DataGridTextColumn Header="Cut length" Binding="{Binding CutLength.DisplayText}" Width="*" />
+                <DataGridTextColumn Header="Cut status" Binding="{Binding CutLength.Status}" Width="Auto" />
+                <DataGridTextColumn Header="Issues" Binding="{Binding IssueSummary}" Width="2*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <GroupBox Grid.Row="3" Header="Edit selected piece elevation" Margin="0,0,0,8">
+            <Grid Margin="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="160" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="160" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Selected piece:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBlock Grid.Row="0" Grid.Column="1"
+                           Text="{Binding SelectedPiece.PieceId, TargetNullValue=(none)}"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold" />
+
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="End:" VerticalAlignment="Center" Margin="12,0,8,0" />
+                <ComboBox Grid.Row="0" Grid.Column="3"
+                          ItemsSource="{Binding ElevationEnds}"
+                          SelectedItem="{Binding SelectedElevationEnd, Mode=TwoWay}"
+                          MinWidth="120" />
+
+                <TextBlock Grid.Row="0" Grid.Column="4" Text="Elevation (m):" VerticalAlignment="Center" Margin="12,0,8,0" />
+                <TextBox Grid.Row="0" Grid.Column="5"
+                         Width="120"
+                         Text="{Binding ElevationValueText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="7" Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="Set known elevation"
+                            Command="{Binding ChangeElevationCommand}"
+                            Padding="10,4"
+                            Margin="0,0,8,0" />
+                    <Button Content="Make elevation unknown"
+                            Command="{Binding MakeElevationUnknownCommand}"
+                            Padding="10,4"
+                            Margin="0,0,12,0" />
+                    <TextBlock Text="Unknown elevations remain unknown and do not display as zero."
+                               VerticalAlignment="Center"
+                               FontStyle="Italic"
+                               Foreground="#666666"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
+        </GroupBox>
+
+        <Border Grid.Row="4" Padding="8" BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="4">
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
+        </Border>
+    </Grid>
+</UserControl>

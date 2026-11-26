@@ -4,6 +4,12 @@
     <ProjectReference Include="..\Application\OneClick.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\sprinkler-agent-kit\fixtures\reference-network.json"
+             Link="fixtures\reference-network.json"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>

@@ -3,10 +3,133 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:OneClick.Desktop"
+        xmlns:controls="clr-namespace:OneClick.Desktop.Controls"
+        xmlns:geometry="clr-namespace:OneClick.Desktop.Controls.Geometry"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="ONE-Click Desktop Shell"
+        Height="720"
+        Width="1280"
+        MinHeight="480"
+        MinWidth="900">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
+        <Border Grid.Row="0"
+                Padding="10"
+                BorderBrush="#FFCCCCCC"
+                BorderThickness="1"
+                CornerRadius="4"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Vertical">
+                    <TextBlock FontSize="16" FontWeight="SemiBold" Text="Project Shell" />
+                    <WrapPanel Margin="0,6,0,0">
+                        <TextBlock Margin="0,0,16,0">
+                            <Run Text="Project: " FontWeight="SemiBold" />
+                            <Run Text="{Binding ProjectId, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock Margin="0,0,16,0">
+                            <Run Text="Revision: " FontWeight="SemiBold" />
+                            <Run Text="{Binding ProjectRevision, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock Margin="0,0,16,0">
+                            <Run Text="Pieces: " FontWeight="SemiBold" />
+                            <Run Text="{Binding PieceCount, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock Margin="0,0,16,0">
+                            <Run Text="Snapshots: " FontWeight="SemiBold" />
+                            <Run Text="{Binding SnapshotManifestCount, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock>
+                            <Run Text="Loaded: " FontWeight="SemiBold" />
+                            <Run Text="{Binding IsLoaded, Mode=OneWay}" />
+                        </TextBlock>
+                    </WrapPanel>
+                    <TextBlock Margin="0,6,0,0" TextWrapping="Wrap">
+                        <Run Text="Status: " FontWeight="SemiBold" />
+                        <Run Text="{Binding StatusMessage, Mode=OneWay}" />
+                    </TextBlock>
+                    <TextBlock Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#FF555555">
+                        <Run Text="Limitations: " FontWeight="SemiBold" />
+                        <Run Text="{Binding KnownLimitations, Mode=OneWay}" />
+                    </TextBlock>
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Padding="12,6"
+                        VerticalAlignment="Top"
+                        Command="{Binding InitializeCommand}"
+                        Content="Load Baseline" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    Margin="0,0,10,0"
+                    BorderBrush="#FFCCCCCC"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top"
+                               Margin="10,10,10,6"
+                               FontWeight="SemiBold"
+                               Text="Geometry" />
+                    <ContentControl x:Name="GeometryRegion" Margin="10,0,10,10">
+                        <geometry:GeometryView x:Name="GeometryViewControl" />
+                    </ContentControl>
+                </DockPanel>
+            </Border>
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0"
+                        Margin="0,0,0,10"
+                        BorderBrush="#FFCCCCCC"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top"
+                                   Margin="10,10,10,6"
+                                   FontWeight="SemiBold"
+                                   Text="Ledger / Edit" />
+                        <ContentControl x:Name="LedgerRegion" Margin="10,0,10,10">
+                            <controls:LedgerPanel x:Name="LedgerPanelControl" />
+                        </ContentControl>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Row="1"
+                        BorderBrush="#FFCCCCCC"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top"
+                                   Margin="10,10,10,6"
+                                   FontWeight="SemiBold"
+                                   Text="Snapshot / Export" />
+                        <ContentControl x:Name="SnapshotRegion" Margin="10,0,10,10">
+                            <controls:SnapshotPanel x:Name="SnapshotPanelControl" />
+                        </ContentControl>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Grid>
     </Grid>
 </Window>

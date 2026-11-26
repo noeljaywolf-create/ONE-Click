@@ -1,0 +1,212 @@
+<UserControl x:Class="OneClick.Desktop.Controls.SnapshotPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:OneClick.Desktop.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:SnapshotPanelViewModel}"
+             d:DesignHeight="700" d:DesignWidth="900">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,8,4" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
+        <Style x:Key="FieldValue" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="12" Orientation="Vertical">
+            <TextBlock Text="Snapshot / Export" FontSize="20" FontWeight="Bold" />
+            <TextBlock Text="Frozen snapshots are immutable. Unknown quantities are preserved as unknown and are never displayed or exported as zero."
+                       TextWrapping="Wrap" Margin="0,4,0,12" Foreground="#444" />
+
+            <Border BorderBrush="#999" BorderThickness="1" Padding="10" Margin="0,0,0,12" Background="#FFF8F8F8">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="Freeze Snapshot" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Snapshot ID" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBox Grid.Column="1" Text="{Binding SnapshotIdInput, UpdateSourceTrigger=PropertyChanged}" MinWidth="160" Margin="0,0,8,0" />
+                        <TextBlock Grid.Column="2" Text="Label (optional)" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBox Grid.Column="3" Text="{Binding LabelInput, UpdateSourceTrigger=PropertyChanged}" MinWidth="160" Margin="0,0,8,0" />
+                        <Button Grid.Column="4" Content="Freeze Snapshot" Command="{Binding FreezeCommand}" Padding="12,4" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border BorderBrush="#999" BorderThickness="1" Padding="10" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="Export Frozen Snapshot" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Export file path" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBox Grid.Column="1" Text="{Binding ExportPath, UpdateSourceTrigger=PropertyChanged}" MinWidth="220" Margin="0,0,8,0" />
+                        <Button Grid.Column="2" Content="Browse JSON..." Command="{Binding BrowseExportJsonCommand}" Padding="8,4" Margin="0,0,8,0" />
+                        <Button Grid.Column="3" Content="Browse CSV..." Command="{Binding BrowseExportCsvCommand}" Padding="8,4" Margin="0,0,8,0" />
+                        <Button Grid.Column="4" Content="Export JSON" Command="{Binding ExportJsonCommand}" Padding="8,4" Margin="0,0,8,0" />
+                        <Button Grid.Column="5" Content="Export CSV" Command="{Binding ExportCsvCommand}" Padding="8,4" />
+                    </Grid>
+                    <TextBlock Text="Exports use the frozen manifest. Unknown quantity values are exported as null/empty, never as zero."
+                               TextWrapping="Wrap" Margin="0,6,0,0" Foreground="#444" />
+                </StackPanel>
+            </Border>
+
+            <Border BorderBrush="#CC7A00" BorderThickness="2" Padding="10" Margin="0,0,0,12" Background="#FFFFFBF0">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,8">
+                        <TextBlock Style="{StaticResource SectionHeader}" Text="Frozen Snapshot Manifest" DockPanel.Dock="Left" />
+                        <Border DockPanel.Dock="Right" Background="#CC7A00" CornerRadius="3" Padding="8,2" Margin="8,0,0,0">
+                            <TextBlock Text="{Binding FrozenLabel}" Foreground="White" FontWeight="Bold" />
+                        </Border>
+                    </DockPanel>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="180" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Snapshot ID" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldValue}" Text="{Binding SnapshotIdDisplay}" />
+                        <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Project revision" />
+                        <TextBlock Grid.Row="0" Grid.Column="3" Style="{StaticResource FieldValue}" Text="{Binding ProjectRevisionDisplay}" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Created (UTC)" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldValue}" Text="{Binding CreatedAtUtcDisplay}" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Label" />
+                        <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource FieldValue}" Text="{Binding LabelDisplay}" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Method / source refs" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldValue}" Text="{Binding MethodVersionDisplay}" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Source refs" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldValue}" Text="{Binding SourceRefsDisplay}" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Issues" />
+                        <TextBlock Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldValue}" Text="{Binding IssuesDisplay}" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border BorderBrush="#999" BorderThickness="1" Padding="10" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="Quantity Summary (Known / Provisional / Unknown)" />
+                    <TextBlock Text="Unknown is not zero. Unknown totals are reported as UNKNOWN with reasons/issues; no numeric zero is substituted."
+                               TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#7A0000" FontWeight="SemiBold" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220" />
+                            <ColumnDefinition Width="80" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" FontWeight="SemiBold" Text="Status" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" FontWeight="SemiBold" Text="Lines" />
+                        <TextBlock Grid.Row="0" Grid.Column="2" FontWeight="SemiBold" Text="Totals / Notes" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Known" Margin="0,4,0,0" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding KnownCountDisplay}" Margin="0,4,0,0" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding KnownTotalsDisplay}" TextWrapping="Wrap" Margin="0,4,0,0" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Provisional" Margin="0,4,0,0" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ProvisionalCountDisplay}" Margin="0,4,0,0" />
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding ProvisionalTotalsDisplay}" TextWrapping="Wrap" Margin="0,4,0,0" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown (never zero)" Foreground="#7A0000" FontWeight="SemiBold" Margin="0,4,0,0" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding UnknownCountDisplay}" Margin="0,4,0,0" />
+                        <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding UnknownTotalsDisplay}" TextWrapping="Wrap" Foreground="#7A0000" Margin="0,4,0,0" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Expander Header="Quantity Lines (detail)" IsExpanded="False" Margin="0,0,0,12">
+                <StackPanel Margin="0,8,0,0">
+                    <TextBlock FontWeight="SemiBold" Text="Known lines" Margin="0,0,0,4" />
+                    <DataGrid ItemsSource="{Binding KnownQuantityLines}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MinHeight="60" Margin="0,0,0,8">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Ledger" Binding="{Binding Ledger}" Width="120" />
+                            <DataGridTextColumn Header="Group/Key" Binding="{Binding GroupKey}" Width="140" />
+                            <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="80" />
+                            <DataGridTextColumn Header="Value" Binding="{Binding ValueDisplay}" Width="120" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90" />
+                            <DataGridTextColumn Header="Method" Binding="{Binding MethodVersion}" Width="140" />
+                            <DataGridTextColumn Header="Source refs" Binding="{Binding SourceRefs}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock FontWeight="SemiBold" Text="Provisional lines" Margin="0,0,0,4" />
+                    <DataGrid ItemsSource="{Binding ProvisionalQuantityLines}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MinHeight="60" Margin="0,0,0,8">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Ledger" Binding="{Binding Ledger}" Width="120" />
+                            <DataGridTextColumn Header="Group/Key" Binding="{Binding GroupKey}" Width="140" />
+                            <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="80" />
+                            <DataGridTextColumn Header="Value" Binding="{Binding ValueDisplay}" Width="120" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90" />
+                            <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="200" />
+                            <DataGridTextColumn Header="Issues" Binding="{Binding IssueRefs}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock FontWeight="SemiBold" Text="Unknown lines (value is UNKNOWN, never zero)" Foreground="#7A0000" Margin="0,0,0,4" />
+                    <DataGrid ItemsSource="{Binding UnknownQuantityLines}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MinHeight="60">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Ledger" Binding="{Binding Ledger}" Width="120" />
+                            <DataGridTextColumn Header="Group/Key" Binding="{Binding GroupKey}" Width="140" />
+                            <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="80" />
+                            <DataGridTextColumn Header="Value" Binding="{Binding ValueDisplay}" Width="160" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90" />
+                            <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="220" />
+                            <DataGridTextColumn Header="Issues" Binding="{Binding IssueRefs}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Expander>
+
+            <Border BorderBrush="#999" BorderThickness="1" Padding="8" Background="#FFF">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="Status" />
+                    <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
