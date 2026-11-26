@@ -1,6 +1,11 @@
 ﻿using OneClick.Core.Formulas;
+using OneClick.Core.Provenance;
 using OneClick.Core.TaggedValues;
 using OneClick.Core.Units;
+
+using QuantityContribution = OneClick.Core.Formulas.QuantityContribution;
+using FormulaQuantityContribution = OneClick.Core.Formulas.QuantityContribution;
+using ProvenanceQuantityContribution = OneClick.Core.Provenance.QuantityContribution;
 
 namespace OneClick.Tests.Reference;
 
@@ -76,6 +81,73 @@ public sealed class QuantityFormulaTests
             QuantityFormulas.SumUniqueOwnedContributions(contributions, "route", "main", SiUnit.Meter, Refs));
 
         Assert.Contains("ambiguous duplicate ownership", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Q01_CalculationResult_MapsCanonicalContributionsAndCarriesDiagnostics()
+    {
+        var contributions = new[]
+        {
+            new FormulaQuantityContribution("asm-1", "procurement", "hanger", 1d, SiUnit.Meter),
+            new FormulaQuantityContribution("part-1", "procurement", "hanger", 0.4d, SiUnit.Meter, includedByOwnerId: "asm-1"),
+            new FormulaQuantityContribution("part-2", "procurement", "hanger", 0.6d, SiUnit.Meter, includedByOwnerId: "asm-1"),
+        };
+        var inputs = new[] { new InputReference("project", "p1", "rev-1") };
+
+        var result = QuantityFormulas.SumUniqueOwnedContributions(
+            contributions,
+            "procurement",
+            "hanger",
+            SiUnit.Meter,
+            Refs,
+            inputs,
+            c => new QuantityContributionId($"qc-{c.OwnerId}"));
+
+        Assert.IsType<CalculationResult<QuantityAggregateResult>>(result);
+        Assert.Equal(1d, result.Value.Total.Value);
+        Assert.Equal("Q01.1.0", result.Provenance.MethodVersion);
+        Assert.Equal(inputs, result.Provenance.Inputs);
+        Assert.Equal(Refs, result.Provenance.SourceRefs);
+        Assert.Equal(result.Contributions.Select(c => c.Id).ToArray(), result.Provenance.ContributionIds);
+
+        Assert.Equal(3, result.Contributions.Count);
+        Assert.All(result.Contributions, c =>
+        {
+            Assert.Equal(Ledger.Procurement, c.Ledger);
+            Assert.Equal("hanger", c.GroupKey);
+            Assert.Equal("Q01.1.0", c.MethodVersion);
+            Assert.Equal(Refs, c.SourceRefs);
+            var qv = Assert.IsType<KnownValue>(c.QualifiedValue);
+            Assert.Equal(SiUnit.Meter, qv.Unit);
+        });
+
+        Assert.Contains("qc-asm-1", result.Contributions.Select(c => c.Id.Value));
+        Assert.Contains("qc-part-1", result.Contributions.Select(c => c.Id.Value));
+
+        Assert.NotEmpty(result.Warnings);
+        Assert.Contains(result.Warnings, w => w.Contains("included-by:asm-1", StringComparison.Ordinal));
+        Assert.Contains("q01:excluded-owners:2", result.Issues);
+    }
+
+    [Fact]
+    public void Q01_CalculationResult_RejectsUnknownCanonicalLedger()
+    {
+        var contributions = new[]
+        {
+            new FormulaQuantityContribution("cut-a", "synthetic-cut", "main", 1d, SiUnit.Meter),
+        };
+        var inputs = new[] { new InputReference("project", "p1", "rev-1") };
+
+        var ex = Assert.Throws<ArgumentException>(() => QuantityFormulas.SumUniqueOwnedContributions(
+            contributions,
+            "synthetic-cut",
+            "main",
+            SiUnit.Meter,
+            Refs,
+            inputs,
+            c => new QuantityContributionId($"qc-{c.OwnerId}")));
+
+        Assert.Contains("synthetic-cut", ex.Message);
     }
 
     [Fact]

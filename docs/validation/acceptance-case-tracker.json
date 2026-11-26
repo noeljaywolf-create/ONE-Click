@@ -1,0 +1,208 @@
+{
+  "schema_version": "1.0.0-draft",
+  "baseline_date": "2026-11-26",
+  "source": "sprinkler-agent-kit/docs/14-qualification-and-release.md#mandatory-initial-case-catalogue",
+  "status_values": [
+    "not_started",
+    "specified",
+    "synthetic_tested",
+    "reference_verified",
+    "product_qualified",
+    "workflow_validated",
+    "purpose_released",
+    "blocked"
+  ],
+  "claim_rules": {
+    "synthetic_tested": "Executable synthetic or fixture-based check only. Not independent review, not real-project validation, not manufacturer qualification, not NFPA certification.",
+    "reference_verified": "Requires independent expected reference cases and versioned report.",
+    "product_qualified": "Requires reviewed manufacturer sources and named product envelope evidence.",
+    "workflow_validated": "Requires independent held-out real-project benchmark with predeclared targets.",
+    "purpose_released": "Requires resolved release assessment and authorized reviewer decision for an explicit purpose."
+  },
+  "cases": [
+    {
+      "id": "AC-001",
+      "stimulus": "Segment displacement (3,4,12) m",
+      "required_observation": "13 m route; independent arithmetic",
+      "status": "synthetic_tested",
+      "evidence_level": "Q1",
+      "evidence_refs": [
+        "tests/Reference/GeometryFormulaTests.cs#G01_IndependentCase_Displacement345_Returns13Meters"
+      ],
+      "limitations": "Synthetic unit test only; no independent review or real-project validation."
+    },
+    {
+      "id": "AC-002",
+      "stimulus": "Same XY route, one Z absent",
+      "required_observation": "3D length unknown; 2D projection separately labelled if shown",
+      "status": "synthetic_tested",
+      "evidence_level": "Q1",
+      "evidence_refs": [
+        "tests/Reference/GeometryFormulaTests.cs#G01_UnknownElevation_ReturnsUnknownSpatialLength"
+      ],
+      "limitations": "Synthetic unit test only; no independent review or real-project validation."
+    },
+    {
+      "id": "AC-003",
+      "stimulus": "Two crossing lines at different Z",
+      "required_observation": "No joint or fitting added",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-004",
+      "stimulus": "Collinear/near-collinear, parallel and degenerate geometry",
+      "required_observation": "Declared stable outcomes; no divide-by-zero or topology guessed from display",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-005",
+      "stimulus": "Translate/rotate a known network",
+      "required_observation": "Lengths, counts and valid connections unchanged within method policy",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-006",
+      "stimulus": "Conflicting dimension and calibration evidence",
+      "required_observation": "Conflict visible; no silent preferred value",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-007",
+      "stimulus": "Artificial 6 m span, offsets .153 m and .103 m",
+      "required_observation": "5.744 m cut under that stated synthetic convention",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable application test recorded. Kit package checker includes related synthetic arithmetic only; that is not application evidence or product qualification."
+    },
+    {
+      "id": "AC-008",
+      "stimulus": "Offsets consume all available span",
+      "required_observation": "Infeasible, not zero/negative purchased pipe",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-009",
+      "stimulus": "OGS/IGS or other mismatched interface",
+      "required_observation": "No automatic compatible-joint assertion; use exact selected profiles",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded; no manufacturer qualification."
+    },
+    {
+      "id": "AC-010",
+      "stimulus": "Unknown head temperature/finish",
+      "required_observation": "Head class count can remain; exact purchase variant unresolved",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded; no manufacturer qualification."
+    },
+    {
+      "id": "AC-011",
+      "stimulus": "Bundle plus exploded members",
+      "required_observation": "Single declared ownership; no double purchase",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-012",
+      "stimulus": "Unknown drop in included scope",
+      "required_observation": "Known subtotal retained; complete total null with issue",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-013",
+      "stimulus": "Repeated accepted command / stale command",
+      "required_observation": "One effect for replay; stale new mutation rejected",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-014",
+      "stimulus": "Source/catalogue input changes during calculation",
+      "required_observation": "Old result retained with old fingerprint; not installed as current",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-015",
+      "stimulus": "Crash between asset promotion and DB commit",
+      "required_observation": "No committed missing source; documented orphan reconciliation",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-016",
+      "stimulus": "Backup/restore, then re-export snapshot",
+      "required_observation": "Frozen contributions/versions preserved; agreed canonical manifest and quantities agree",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-017",
+      "stimulus": "Three 4 m cuts from 6 m stock",
+      "required_observation": "At least three sticks without splicing; length-only lower bound is not feasible packing",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-018",
+      "stimulus": "Report or CSV includes unknowns/provisionals",
+      "required_observation": "No conversion to zeros, no hidden exclusions, same scope as snapshot",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-019",
+      "stimulus": "New document revision omits earlier feature",
+      "required_observation": "Change classification remains unresolved until reviewed; not automatic deletion",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded."
+    },
+    {
+      "id": "AC-020",
+      "stimulus": "Applicable check has missing criteria or is unimplemented",
+      "required_observation": "cannot_verify or unsupported respectively; not pass",
+      "status": "not_started",
+      "evidence_level": "Q0",
+      "evidence_refs": [],
+      "limitations": "No executable evidence recorded; no NFPA certification/compliance claim."
+    }
+  ]
+}

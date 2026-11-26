@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Core\OneClick.Core.csproj" />
+    <ProjectReference Include="..\..\src\Application\OneClick.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

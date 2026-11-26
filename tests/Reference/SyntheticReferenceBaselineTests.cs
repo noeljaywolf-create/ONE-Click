@@ -34,6 +34,8 @@ public sealed class SyntheticReferenceBaselineTests
         double CutLengthM);
 
     [Fact]
+    [Trait("ValidationEvidence", "SyntheticBaseline")]
+    [Trait("ValidationScope", "FixtureOnly")]
     public void SyntheticFixture_BaselineRouteAndCutTotals_MatchDocumented21mAnd19_77m()
     {
         var pieces = LoadFixturePieces();
@@ -48,6 +50,8 @@ public sealed class SyntheticReferenceBaselineTests
     }
 
     [Fact]
+    [Trait("ValidationEvidence", "SyntheticBaseline")]
+    [Trait("ValidationScope", "FixtureOnly")]
     public void SyntheticFixture_RouteLengths_UseG01StraightSegmentLengthPerPiece()
     {
         var pieces = LoadFixturePieces();
@@ -67,6 +71,8 @@ public sealed class SyntheticReferenceBaselineTests
     }
 
     [Fact]
+    [Trait("ValidationEvidence", "SyntheticBaseline")]
+    [Trait("ValidationScope", "FixtureOnly")]
     public void SyntheticFixture_CutTotal_UsesQ01LedgerSeparation_FromRouteAndSyntheticCutLedgers()
     {
         var pieces = LoadFixturePieces();
@@ -100,6 +106,8 @@ public sealed class SyntheticReferenceBaselineTests
     }
 
     [Fact]
+    [Trait("ValidationEvidence", "SyntheticBaseline")]
+    [Trait("ValidationScope", "FixtureOnly")]
     public void SyntheticFixture_PieceCount_Is10_ForDocumentedBaselineOnly()
     {
         var pieces = LoadFixturePieces();

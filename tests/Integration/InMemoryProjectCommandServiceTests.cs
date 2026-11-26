@@ -28,7 +28,7 @@ public sealed class InMemoryProjectCommandServiceTests
         Assert.Equal(1, receipt.NewRevision.Value);
         Assert.Empty(receipt.CreatedIds);
         Assert.Empty(receipt.InvalidatedIds);
-        Assert.Empty(receipt.IssueIds);
+        Assert.Equal(["issue:placeholder:ImportDocument"], receipt.IssueIds);
 
         var view = await service.QueryProjectAsync(projectId, actor);
         Assert.Equal(1, view.Revision.Value);

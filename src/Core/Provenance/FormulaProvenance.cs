@@ -3,8 +3,9 @@ namespace OneClick.Core.Provenance;
 using OneClick.Core.TaggedValues;
 
 /// <summary>
-/// Adapters for wiring formula/calculation outputs to <see cref="ResultProvenance"/>.
-/// Keeps Core provenance explicit without changing existing formula return contracts.
+/// Adapters for wiring formula/calculation outputs to <see cref="ResultProvenance"/> and
+/// <see cref="CalculationResult{T}"/>. Keeps Core provenance explicit without changing existing
+/// formula return contracts.
 /// </summary>
 public static class FormulaProvenance
 {
@@ -49,4 +50,46 @@ public static class FormulaProvenance
         IReadOnlyList<QuantityContributionId> contributionIds)
         where TTagged : TaggedValue =>
         new(value, Create(value.MethodVersion, inputs, sourceRefs, contributionIds));
+
+    /// <summary>
+    /// Wraps a derived value in a <see cref="CalculationResult{T}"/> with explicit provenance
+    /// and optional warnings, issues, and canonical contributions.
+    /// </summary>
+    public static CalculationResult<T> WrapCalculation<T>(
+        T value,
+        string methodVersion,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<QuantityContributionId> contributionIds,
+        IReadOnlyList<string>? warnings = null,
+        IReadOnlyList<string>? issues = null,
+        IReadOnlyList<QuantityContribution>? contributions = null)
+        where T : notnull =>
+        new(value, Create(methodVersion, inputs, sourceRefs, contributionIds), warnings, issues, contributions);
+
+    /// <summary>
+    /// Wraps a tagged formula output in a <see cref="CalculationResult{T}"/>. Method version and
+    /// source refs are taken from the tagged value to keep provenance consistent with the output.
+    /// </summary>
+    public static CalculationResult<TTagged> WrapTaggedCalculation<TTagged>(
+        TTagged value,
+        IReadOnlyList<InputReference> inputs,
+        IReadOnlyList<QuantityContributionId> contributionIds,
+        IReadOnlyList<string>? warnings = null,
+        IReadOnlyList<string>? issues = null,
+        IReadOnlyList<QuantityContribution>? contributions = null)
+        where TTagged : TaggedValue =>
+        new(value, Create(value.MethodVersion, inputs, value.SourceRefs, contributionIds), warnings, issues, contributions);
+
+    /// <summary>
+    /// Promotes an existing <see cref="DerivedResult{T}"/> to a <see cref="CalculationResult{T}"/>
+    /// while preserving provenance and adding optional diagnostics/contributions.
+    /// </summary>
+    public static CalculationResult<T> ToCalculationResult<T>(
+        DerivedResult<T> result,
+        IReadOnlyList<string>? warnings = null,
+        IReadOnlyList<string>? issues = null,
+        IReadOnlyList<QuantityContribution>? contributions = null)
+        where T : notnull =>
+        CalculationResult<T>.FromDerivedResult(result, warnings, issues, contributions);
 }

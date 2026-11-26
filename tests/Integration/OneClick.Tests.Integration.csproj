@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Application\OneClick.Application.csproj" />
+    <ProjectReference Include="..\..\src\HttpAdapter\OneClick.HttpAdapter.csproj" />
     <ProjectReference Include="..\..\src\Infrastructure\OneClick.Infrastructure.csproj" />
   </ItemGroup>
 

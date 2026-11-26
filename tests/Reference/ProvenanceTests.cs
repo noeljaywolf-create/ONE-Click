@@ -417,6 +417,130 @@ public sealed class ProvenanceTests
         Assert.Equal("missing", contributionValue.Reason);
     }
 
+    [Fact]
+    public void QuantityContributionAdapter_ToCanonical_MapsAggregationContribution()
+    {
+        var aggregation = new FormulaQuantityContribution("route-a", "route", "main/steel", 12.5d, SiUnit.Meter, includedByOwnerId: "asm-1");
+
+        var canonical = QuantityContributionAdapter.ToCanonical(
+            aggregation,
+            new QuantityContributionId("qc-1"),
+            Ledger.Route,
+            ["obs-route-1"],
+            "Q01.1.0");
+
+        Assert.Equal("qc-1", canonical.Id.Value);
+        Assert.Equal("route-a", canonical.OwnerId);
+        Assert.Equal(Ledger.Route, canonical.Ledger);
+        Assert.Equal("main/steel", canonical.GroupKey);
+        var qualified = Assert.IsType<KnownValue>(canonical.QualifiedValue);
+        Assert.Equal(12.5d, qualified.Value);
+        Assert.Equal(SiUnit.Meter, qualified.Unit);
+        Assert.Equal(["obs-route-1"], canonical.SourceRefs);
+        Assert.Equal("Q01.1.0", canonical.MethodVersion);
+    }
+
+    [Fact]
+    public void QuantityContributionAdapter_ToCanonical_BatchMapsInOrder()
+    {
+        var inputs = new[]
+        {
+            new FormulaQuantityContribution("a", "route", "g", 1d, SiUnit.Meter),
+            new FormulaQuantityContribution("b", "route", "g", 2d, SiUnit.Meter),
+        };
+
+        var mapped = QuantityContributionAdapter.ToCanonical(
+            inputs,
+            Ledger.Route,
+            ["obs"],
+            "Q01.1.0",
+            c => new QuantityContributionId($"qc-{c.OwnerId}"));
+
+        Assert.Equal(2, mapped.Count);
+        Assert.Equal("qc-a", mapped[0].Id.Value);
+        Assert.Equal("qc-b", mapped[1].Id.Value);
+        Assert.Equal(1d, Assert.IsType<KnownValue>(mapped[0].QualifiedValue).Value);
+        Assert.Equal(2d, Assert.IsType<KnownValue>(mapped[1].QualifiedValue).Value);
+    }
+
+    [Fact]
+    public void QuantityContributionAdapter_ParseLedger_IsExplicit()
+    {
+        Assert.True(QuantityContributionAdapter.TryParseLedger("route", out var route));
+        Assert.Equal(Ledger.Route, route);
+        Assert.True(QuantityContributionAdapter.TryParseLedger(" Fabrication ", out var fabrication));
+        Assert.Equal(Ledger.Fabrication, fabrication);
+        Assert.False(QuantityContributionAdapter.TryParseLedger("synthetic-cut", out _));
+        Assert.False(QuantityContributionAdapter.TryParseLedger("", out _));
+
+        Assert.Equal(Ledger.Procurement, QuantityContributionAdapter.ParseLedger("procurement"));
+        var ex = Assert.Throws<ArgumentException>(() => QuantityContributionAdapter.ParseLedger("synthetic-cut"));
+        Assert.Contains("synthetic-cut", ex.Message);
+    }
+
+    [Fact]
+    public void FormulaProvenance_WrapCalculation_CarriesDiagnosticsAndContributions()
+    {
+        var contribution = new ProvenanceQuantityContribution(
+            new QuantityContributionId("qc-1"),
+            "owner",
+            Ledger.Route,
+            "group",
+            new KnownValue(1d, SiUnit.Meter, ["obs-1"], "Q01.1.0"),
+            ["obs-1"],
+            "Q01.1.0");
+
+        var result = FormulaProvenance.WrapCalculation(
+            new KnownValue(1d, SiUnit.Meter, ["obs-1"], "Q01.1.0"),
+            "Q01.1.0",
+            [new InputReference("project", "p1", "rev-1")],
+            ["obs-1"],
+            [new QuantityContributionId("qc-1")],
+            warnings: ["w1"],
+            issues: ["i1"],
+            contributions: [contribution]);
+
+        Assert.IsType<CalculationResult<KnownValue>>(result);
+        Assert.Equal("Q01.1.0", result.Provenance.MethodVersion);
+        Assert.Equal(["w1"], result.Warnings);
+        Assert.Equal(["i1"], result.Issues);
+        Assert.Single(result.Contributions);
+        Assert.Equal("qc-1", result.Contributions[0].Id.Value);
+    }
+
+    [Fact]
+    public void FormulaProvenance_WrapTaggedCalculation_UsesTaggedMetadata()
+    {
+        var tagged = new KnownValue(5d, SiUnit.Meter, ["obs:a"], "Q02.1.0");
+
+        var result = FormulaProvenance.WrapTaggedCalculation(
+            tagged,
+            [new InputReference("project", "p1", "rev-1")],
+            [new QuantityContributionId("qc-1")],
+            warnings: ["warn"]);
+
+        Assert.Same(tagged, result.Value);
+        Assert.Equal("Q02.1.0", result.Provenance.MethodVersion);
+        Assert.Equal(tagged.SourceRefs, result.Provenance.SourceRefs);
+        Assert.Equal(["warn"], result.Warnings);
+        Assert.Empty(result.Issues);
+    }
+
+    [Fact]
+    public void FormulaProvenance_ToCalculationResult_PromotesDerivedResult()
+    {
+        var derived = new DerivedResult<KnownValue>(
+            new KnownValue(3d, SiUnit.Meter, ["obs-1"], "Q01.1.0"),
+            CreateProvenance());
+
+        var result = FormulaProvenance.ToCalculationResult(derived, warnings: ["w"], issues: ["i"]);
+
+        Assert.Same(derived.Value, result.Value);
+        Assert.Same(derived.Provenance, result.Provenance);
+        Assert.Equal(["w"], result.Warnings);
+        Assert.Equal(["i"], result.Issues);
+    }
+
     private static ResultProvenance CreateProvenance() =>
         new(
             "Q01.1.0",

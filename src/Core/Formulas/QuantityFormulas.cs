@@ -160,6 +160,16 @@ public static class QuantityFormulas
         SiUnit unit,
         IReadOnlyList<string> sourceRefs)
     {
+        return SumUniqueOwnedContributionsCore(contributions, ledger, specGroup, unit, sourceRefs).Result;
+    }
+
+    private static (QuantityAggregateResult Result, IReadOnlyList<QuantityContribution> DedupedInGroup) SumUniqueOwnedContributionsCore(
+        IEnumerable<QuantityContribution> contributions,
+        string ledger,
+        string specGroup,
+        SiUnit unit,
+        IReadOnlyList<string> sourceRefs)
+    {
         ArgumentNullException.ThrowIfNull(contributions);
         Guard.Required(ledger, nameof(ledger));
         Guard.Required(specGroup, nameof(specGroup));
@@ -199,13 +209,14 @@ public static class QuantityFormulas
             byOwner.Add(c.OwnerId, c);
         }
 
+        var dedupedInGroup = byOwner.Values.OrderBy(c => c.OwnerId, StringComparer.Ordinal).ToArray();
         var owners = byOwner.Keys.ToHashSet(StringComparer.Ordinal);
         var counted = new List<string>();
         var excluded = new List<string>();
         var warnings = new List<string>();
         double total = 0d;
 
-        foreach (var c in byOwner.Values.OrderBy(c => c.OwnerId, StringComparer.Ordinal))
+        foreach (var c in dedupedInGroup)
         {
             if (c.IncludedByOwnerId is not null && owners.Contains(c.IncludedByOwnerId))
             {
@@ -219,7 +230,7 @@ public static class QuantityFormulas
         }
 
         var totalValue = new KnownValue(total, unit, sourceRefs, Q01.MethodVersion);
-        return new QuantityAggregateResult(totalValue, counted, excluded, warnings);
+        return (new QuantityAggregateResult(totalValue, counted, excluded, warnings), dedupedInGroup);
     }
 
     /// <summary>Q02: allowance = basis * w. Unknown basis -> unknown. w and policy must be explicit.</summary>
@@ -457,6 +468,48 @@ public static class QuantityFormulas
     {
         var value = SumUniqueOwnedContributions(contributions, ledger, specGroup, unit, sourceRefs);
         return FormulaProvenance.Wrap(value, value.Total.MethodVersion, inputs, value.Total.SourceRefs, contributionIds);
+    }
+
+    /// <summary>
+    /// Q01 with canonical result envelope. Sums contributions, maps deduped in-group aggregation
+    /// inputs to canonical <see cref="OneClick.Core.Provenance.QuantityContribution"/> records via
+    /// <see cref="QuantityContributionAdapter"/>, and returns a <see cref="CalculationResult{T}"/>
+    /// carrying provenance, aggregate warnings, and canonical contributions.
+    /// </summary>
+    public static CalculationResult<QuantityAggregateResult> SumUniqueOwnedContributions(
+        IEnumerable<QuantityContribution> contributions,
+        string ledger,
+        string specGroup,
+        SiUnit unit,
+        IReadOnlyList<string> sourceRefs,
+        IReadOnlyList<InputReference> inputs,
+        Func<QuantityContribution, QuantityContributionId> contributionIdFactory)
+    {
+        ArgumentNullException.ThrowIfNull(contributionIdFactory);
+
+        var (value, dedupedInGroup) = SumUniqueOwnedContributionsCore(contributions, ledger, specGroup, unit, sourceRefs);
+        var canonicalLedger = QuantityContributionAdapter.ParseLedger(ledger);
+        var canonicalContributions = QuantityContributionAdapter.ToCanonical(
+            dedupedInGroup,
+            canonicalLedger,
+            sourceRefs,
+            Q01.MethodVersion,
+            contributionIdFactory);
+
+        var contributionIds = canonicalContributions.Select(c => c.Id).ToArray();
+        var issues = new List<string>();
+        if (value.ExcludedOwnerIds.Count > 0)
+            issues.Add($"q01:excluded-owners:{value.ExcludedOwnerIds.Count}");
+
+        return FormulaProvenance.WrapCalculation(
+            value,
+            value.Total.MethodVersion,
+            inputs,
+            value.Total.SourceRefs,
+            contributionIds,
+            warnings: value.Warnings,
+            issues: issues,
+            contributions: canonicalContributions);
     }
 
     public static DerivedResult<TaggedValue> Allowance(

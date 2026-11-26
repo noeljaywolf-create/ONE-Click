@@ -10,6 +10,8 @@ public sealed class GeometryFormulaTests
     private static readonly string[] Refs = ["obs:line:1"];
 
     [Fact]
+    [Trait("ValidationEvidence", "SyntheticCase")]
+    [Trait("AcceptanceCase", "AC-001")]
     public void G01_IndependentCase_Displacement345_Returns13Meters()
     {
         var start = new Point3D(0, 0, 0);
@@ -25,6 +27,8 @@ public sealed class GeometryFormulaTests
     }
 
     [Fact]
+    [Trait("ValidationEvidence", "SyntheticCase")]
+    [Trait("AcceptanceCase", "AC-002")]
     public void G01_UnknownElevation_ReturnsUnknownSpatialLength()
     {
         var start = new SpatialEndpoint(new Point2D(0, 0), 0d);

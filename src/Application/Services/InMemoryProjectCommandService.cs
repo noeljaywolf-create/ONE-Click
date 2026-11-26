@@ -1,19 +1,20 @@
-using System.Collections.Concurrent;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using OneClick.Application.Commands;
 using OneClick.Application.Contracts;
+using OneClick.Application.Dispatch;
 using OneClick.Application.Errors;
+using OneClick.Application.Persistence;
+using OneClick.Application.Persistence.InMemory;
 using OneClick.Application.Validation;
 using OneClick.Core.Ids;
 
 namespace OneClick.Application.Services;
 
 /// <summary>
-/// Deterministic in-memory command execution skeleton. It enforces boundary validation,
-/// expected-revision preconditions, and command replay semantics within process scope.
-/// It does not perform real engineering mutations, persistence, or transport concerns.
+/// Application command/query service orchestrating validation, dispatch, transaction, persistence, and outbox seams.
+/// The default constructor wires process-local in-memory adapters for tests/skeleton use; those adapters are not durable.
 /// </summary>
 public sealed class InMemoryProjectCommandService : IProjectCommandService, IProjectQueryService
 {
@@ -33,12 +34,33 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
     ];
 
     private readonly ICommandBoundaryValidator _validator;
-    private readonly ConcurrentDictionary<string, ProjectState> _projects = new(StringComparer.Ordinal);
-    private readonly object _gate = new();
+    private readonly IProjectCommandStore _store;
+    private readonly ICommandTransactionFactory _transactionFactory;
+    private readonly ICommandOutboxWriter _outbox;
+    private readonly ICommandDispatcher _dispatcher;
 
     public InMemoryProjectCommandService(ICommandBoundaryValidator? validator = null)
+        : this(
+            validator,
+            CreateDefaultInMemoryStore(out var sync),
+            new InMemoryCommandTransactionFactory(sync),
+            new InMemoryCommandOutboxWriter(),
+            CreateDefaultDispatcher())
+    {
+    }
+
+    public InMemoryProjectCommandService(
+        ICommandBoundaryValidator? validator,
+        IProjectCommandStore store,
+        ICommandTransactionFactory transactionFactory,
+        ICommandOutboxWriter outbox,
+        ICommandDispatcher dispatcher)
     {
         _validator = validator ?? new CommandBoundaryValidator();
+        _store = store ?? throw new ArgumentNullException(nameof(store));
+        _transactionFactory = transactionFactory ?? throw new ArgumentNullException(nameof(transactionFactory));
+        _outbox = outbox ?? throw new ArgumentNullException(nameof(outbox));
+        _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
     }
 
     /// <summary>
@@ -46,24 +68,8 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
     /// </summary>
     public ProjectView CreateProject(ProjectId projectId)
     {
-        if (string.IsNullOrWhiteSpace(projectId.Value))
-        {
-            throw new ApplicationProblemException(Malformed("ProjectId is required.", "projectId"));
-        }
-
-        lock (_gate)
-        {
-            if (_projects.ContainsKey(projectId.Value))
-            {
-                throw new ApplicationProblemException(Conflict(
-                    $"Project '{projectId.Value}' already exists.",
-                    "projectId"));
-            }
-
-            var state = new ProjectState(projectId.Value);
-            _projects[projectId.Value] = state;
-            return state.ToView();
-        }
+        _store.CreateProjectAsync(projectId).GetAwaiter().GetResult();
+        return BuildView(projectId.Value, ProjectRevision.Initial);
     }
 
     public async Task<CommandReceipt> ExecuteCommandAsync(
@@ -86,48 +92,77 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
         var bodyHash = ComputeBodyHash(command);
         var replayKey = BuildReplayKey(projectId, actorContext, commandId);
 
-        lock (_gate)
+        await using var transaction = await _transactionFactory.BeginAsync(cancellationToken).ConfigureAwait(false);
+
+        var state = await _store.GetStateAsync(projectId, cancellationToken).ConfigureAwait(false);
+        if (state is null)
         {
-            if (!_projects.TryGetValue(projectId.Value, out var state))
-            {
-                throw new ApplicationProblemException(NotFound(
-                    $"Project '{projectId.Value}' was not found.",
-                    "projectId"));
-            }
-
-            if (state.ReplayEntries.TryGetValue(replayKey, out var existing))
-            {
-                if (string.Equals(existing.BodyHash, bodyHash, StringComparison.Ordinal))
-                {
-                    return existing.Receipt;
-                }
-
-                throw new ApplicationProblemException(Conflict(
-                    "Command replay key was already used with a different command body.",
-                    "commandId",
-                    state.Revision));
-            }
-
-            if (state.Revision != expectedRevision)
-            {
-                throw new ApplicationProblemException(StaleRevision(state.Revision));
-            }
-
-            var newRevision = new ProjectRevision(state.Revision.Value + 1);
-            var receipt = new CommandReceipt(
-                newRevision,
-                Array.Empty<string>(),
-                Array.Empty<string>(),
-                Array.Empty<string>());
-
-            state.Revision = newRevision;
-            state.ReplayEntries[replayKey] = new ReplayEntry(bodyHash, receipt);
-
-            return receipt;
+            throw new ApplicationProblemException(NotFound(
+                $"Project '{projectId.Value}' was not found.",
+                "projectId"));
         }
+
+        var existingReplay = await _store.FindReplayAsync(projectId, replayKey, cancellationToken).ConfigureAwait(false);
+        if (existingReplay is not null)
+        {
+            if (string.Equals(existingReplay.BodyHash, bodyHash, StringComparison.Ordinal))
+            {
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                return existingReplay.Receipt;
+            }
+
+            throw new ApplicationProblemException(Conflict(
+                "Command replay key was already used with a different command body.",
+                "commandId",
+                state.Revision));
+        }
+
+        if (state.Revision != expectedRevision)
+        {
+            throw new ApplicationProblemException(StaleRevision(state.Revision));
+        }
+
+        var dispatchResult = await _dispatcher.DispatchAsync(
+            command,
+            new CommandHandlerContext(projectId, expectedRevision, commandId, actorContext),
+            cancellationToken).ConfigureAwait(false);
+
+        var newRevision = new ProjectRevision(state.Revision.Value + 1);
+        var receipt = new CommandReceipt(
+            newRevision,
+            dispatchResult.CreatedIds,
+            dispatchResult.InvalidatedIds,
+            dispatchResult.IssueIds);
+
+        var commit = new AcceptedCommandCommit(
+            projectId,
+            expectedRevision,
+            newRevision,
+            commandId,
+            replayKey,
+            bodyHash,
+            command,
+            actorContext,
+            receipt);
+
+        var committedReceipt = await _store.CommitAcceptedCommandAsync(commit, cancellationToken).ConfigureAwait(false);
+
+        await _outbox.WriteAsync(
+            new CommandOutboxMessage(
+                Guid.NewGuid().ToString("N"),
+                projectId,
+                committedReceipt.NewRevision,
+                commandId,
+                command.CommandType,
+                DateTimeOffset.UtcNow,
+                committedReceipt),
+            cancellationToken).ConfigureAwait(false);
+
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return committedReceipt;
     }
 
-    public Task<ProjectView> QueryProjectAsync(
+    public async Task<ProjectView> QueryProjectAsync(
         ProjectId projectId,
         ActorContext actorContext,
         CancellationToken cancellationToken = default)
@@ -140,23 +175,26 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
             throw new ApplicationProblemException(Malformed("ProjectId is required.", "projectId"));
         }
 
-        lock (_gate)
+        var state = await _store.GetStateAsync(projectId, cancellationToken).ConfigureAwait(false);
+        if (state is null)
         {
-            if (!_projects.TryGetValue(projectId.Value, out var state))
-            {
-                throw new ApplicationProblemException(NotFound(
-                    $"Project '{projectId.Value}' was not found.",
-                    "projectId"));
-            }
-
-            return Task.FromResult(state.ToView());
+            throw new ApplicationProblemException(NotFound(
+                $"Project '{projectId.Value}' was not found.",
+                "projectId"));
         }
+
+        return BuildView(state.ProjectId.Value, state.Revision);
     }
+
+    private static ProjectView BuildView(string projectId, ProjectRevision revision) =>
+        new(
+            projectId,
+            revision,
+            new ProjectCapabilities(SupportedCommands, ["QueryProject"]),
+            new ProjectScope(HasAcceptedModel: false, KnownLimitations: ["in-memory-skeleton"]));
 
     private static string BuildReplayKey(ProjectId projectId, ActorContext actorContext, CommandId commandId)
     {
-        // In-memory replay scope: project + actor session + command id.
-        // The HTTP adapter contract also scopes by method/path; this skeleton has no transport.
         return string.Join("|",
             projectId.Value,
             actorContext.ActorId,
@@ -170,6 +208,26 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(json));
         return Convert.ToHexString(bytes);
     }
+
+    private static IProjectCommandStore CreateDefaultInMemoryStore(out InMemoryCommandSynchronization sync)
+    {
+        sync = new InMemoryCommandSynchronization();
+        return new InMemoryProjectCommandStore(sync);
+    }
+
+    private static ICommandDispatcher CreateDefaultDispatcher() =>
+        new CommandDispatcher(
+        [
+            new ImportDocumentCommandHandler(),
+            new SetCalibrationCommandHandler(),
+            new UpsertRouteCommandHandler(),
+            new PlaceComponentCommandHandler(),
+            new ConnectPortsCommandHandler(),
+            new AcceptProposalCommandHandler(),
+            new ReviewPropertyCommandHandler(),
+            new SelectAssemblyCommandHandler(),
+            new ReleaseSnapshotCommandHandler(),
+        ]);
 
     private static ApplicationProblemDetails Malformed(string detail, string field) =>
         new(
@@ -214,20 +272,4 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
             ApplicationProblemCodes.StaleRevision,
             Array.Empty<string>(),
             currentRevision);
-
-    private sealed class ProjectState(string projectId)
-    {
-        public string ProjectId { get; } = projectId;
-        public ProjectRevision Revision { get; set; } = ProjectRevision.Initial;
-        public Dictionary<string, ReplayEntry> ReplayEntries { get; } = new(StringComparer.Ordinal);
-
-        public ProjectView ToView() =>
-            new(
-                ProjectId,
-                Revision,
-                new ProjectCapabilities(SupportedCommands, ["QueryProject"]),
-                new ProjectScope(HasAcceptedModel: false, KnownLimitations: ["in-memory-skeleton"]));
-    }
-
-    private sealed record ReplayEntry(string BodyHash, CommandReceipt Receipt);
 }

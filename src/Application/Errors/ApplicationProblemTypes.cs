@@ -14,4 +14,5 @@ public static class ApplicationProblemTypes
     public const string PayloadTooLarge = "urn:oneclick:problem:payload-too-large";
     public const string InvalidGeometry = "urn:oneclick:problem:invalid-geometry";
     public const string PreconditionRequired = "urn:oneclick:problem:precondition-required";
+    public const string InternalError = "urn:oneclick:problem:internal-error";
 }
