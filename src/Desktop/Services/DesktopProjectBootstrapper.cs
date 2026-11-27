@@ -16,7 +16,8 @@ public sealed record DesktopBootstrapResult(
     IProjectCommandService CommandService,
     IProjectQueryService QueryService,
     IProjectDomainStateStore DomainStateStore,
-    ActorContext ActorContext);
+    ActorContext ActorContext,
+    DesktopAgentRuntimeService AgentRuntime);
 
 public sealed class DesktopProjectBootstrapper
 {
@@ -32,6 +33,7 @@ public sealed class DesktopProjectBootstrapper
 
         var domainStore = new InMemoryProjectDomainStateStore();
         var commandService = new InMemoryProjectCommandService(validator: null, domainStateStore: domainStore);
+        var agentRuntime = new DesktopAgentRuntimeService(domainStore);
 
         commandService.CreateProject(projectId);
 
@@ -55,6 +57,7 @@ public sealed class DesktopProjectBootstrapper
             commandService,
             commandService,
             domainStore,
-            actor);
+            actor,
+            agentRuntime);
     }
 }

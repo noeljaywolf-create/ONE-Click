@@ -1,4 +1,8 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
+using OneClick.Application.Agents.Audit;
+using OneClick.Application.Contracts;
 
 namespace OneClick.Application.Agents;
 
@@ -9,6 +13,14 @@ namespace OneClick.Application.Agents;
 public sealed class InMemoryLocalAgentRegistry : ILocalAgentRegistry
 {
     private readonly ConcurrentDictionary<string, ILocalAgent> _agents = new(StringComparer.Ordinal);
+    private readonly IAgentRunRecordStore? _runRecordStore;
+    private readonly TimeProvider _timeProvider;
+
+    public InMemoryLocalAgentRegistry(IAgentRunRecordStore? runRecordStore = null, TimeProvider? timeProvider = null)
+    {
+        _runRecordStore = runRecordStore;
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     public void Register(ILocalAgent agent)
     {
@@ -66,7 +78,23 @@ public sealed class InMemoryLocalAgentRegistry : ILocalAgentRegistry
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        return await agent.ExecuteAsync(request, context, cancellationToken).ConfigureAwait(false);
+        var startedAt = _timeProvider.GetUtcNow();
+        try
+        {
+            var result = await agent.ExecuteAsync(request, context, cancellationToken).ConfigureAwait(false);
+            await RecordAsync(agent.Descriptor, context, request.Input, startedAt, result, cancellationToken).ConfigureAwait(false);
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            await RecordCancellationAsync(agent.Descriptor, context, request.Input, startedAt, cancellationToken).ConfigureAwait(false);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            await RecordExceptionAsync(agent.Descriptor, context, request.Input, startedAt, ex, cancellationToken).ConfigureAwait(false);
+            throw;
+        }
     }
 
     public async Task<AgentResult<TOutput>> ExecuteAsync<TInput, TOutput>(
@@ -93,15 +121,164 @@ public sealed class InMemoryLocalAgentRegistry : ILocalAgentRegistry
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        var startedAt = _timeProvider.GetUtcNow();
 
-        if (agent is ILocalAgent<TInput, TOutput> typedAgent)
+        try
         {
-            return await typedAgent.ExecuteAsync(request, context, cancellationToken).ConfigureAwait(false);
-        }
+            if (agent is ILocalAgent<TInput, TOutput> typedAgent)
+            {
+                var typedResult = await typedAgent.ExecuteAsync(request, context, cancellationToken).ConfigureAwait(false);
+                await RecordAsync(agent.Descriptor, context, request.Input, startedAt, typedResult, cancellationToken).ConfigureAwait(false);
+                return typedResult;
+            }
 
-        var untyped = await agent.ExecuteAsync(new AgentRequest<object?>(request.Input), context, cancellationToken).ConfigureAwait(false);
-        return MapUntypedResult<TOutput>(agentId, untyped);
+            var untyped = await agent.ExecuteAsync(new AgentRequest<object?>(request.Input), context, cancellationToken).ConfigureAwait(false);
+            var mapped = MapUntypedResult<TOutput>(agentId, untyped);
+            await RecordAsync(agent.Descriptor, context, request.Input, startedAt, mapped, cancellationToken).ConfigureAwait(false);
+            return mapped;
+        }
+        catch (OperationCanceledException)
+        {
+            await RecordCancellationAsync(agent.Descriptor, context, request.Input, startedAt, cancellationToken).ConfigureAwait(false);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            await RecordExceptionAsync(agent.Descriptor, context, request.Input, startedAt, ex, cancellationToken).ConfigureAwait(false);
+            throw;
+        }
     }
+
+    private async Task RecordAsync<TOutput>(
+        AgentDescriptor descriptor,
+        AgentRunContext context,
+        object? input,
+        DateTimeOffset startedAt,
+        AgentResult<TOutput> result,
+        CancellationToken cancellationToken)
+    {
+        if (_runRecordStore is null)
+            return;
+
+        var endedAt = _timeProvider.GetUtcNow();
+        var record = new AgentRunRecord(
+            RunId: AgentRunId.NewId(),
+            AgentId: descriptor.Id,
+            AgentVersion: descriptor.Version,
+            AgentKind: descriptor.Kind,
+            CorrelationId: context.CorrelationId,
+            ProjectId: context.ProjectId,
+            ProjectRevision: context.ProjectRevision,
+            Actor: context.Actor,
+            InputFingerprint: ComputeInputFingerprint(input),
+            InputSummary: ComputeInputSummary(input),
+            StartedAt: startedAt,
+            EndedAt: endedAt,
+            Status: result.IsSuccess ? AgentRunStatus.Succeeded : AgentRunStatus.Failed,
+            Issues: result.Issues,
+            Warnings: result.Warnings,
+            ProvenanceRefs: result.ProvenanceRefs,
+            OutputRefs: Array.Empty<string>(),
+            OutputSummary: ComputeOutputSummary(result),
+            ErrorCode: result.ErrorCode,
+            ErrorDetail: result.ErrorDetail);
+
+        await _runRecordStore.AppendAsync(record, CancellationToken.None).ConfigureAwait(false);
+    }
+
+    private async Task RecordCancellationAsync(
+        AgentDescriptor descriptor,
+        AgentRunContext context,
+        object? input,
+        DateTimeOffset startedAt,
+        CancellationToken cancellationToken)
+    {
+        if (_runRecordStore is null)
+            return;
+
+        var endedAt = _timeProvider.GetUtcNow();
+        var record = new AgentRunRecord(
+            RunId: AgentRunId.NewId(),
+            AgentId: descriptor.Id,
+            AgentVersion: descriptor.Version,
+            AgentKind: descriptor.Kind,
+            CorrelationId: context.CorrelationId,
+            ProjectId: context.ProjectId,
+            ProjectRevision: context.ProjectRevision,
+            Actor: context.Actor,
+            InputFingerprint: ComputeInputFingerprint(input),
+            InputSummary: ComputeInputSummary(input),
+            StartedAt: startedAt,
+            EndedAt: endedAt,
+            Status: AgentRunStatus.Cancelled,
+            Issues: Array.Empty<string>(),
+            Warnings: Array.Empty<string>(),
+            ProvenanceRefs: Array.Empty<string>(),
+            OutputRefs: Array.Empty<string>(),
+            OutputSummary: null,
+            ErrorCode: "agent.execution.cancelled",
+            ErrorDetail: $"Local agent '{descriptor.Id}' execution was cancelled.");
+
+        // Record with CancellationToken.None to avoid losing audit on cancellation.
+        await _runRecordStore.AppendAsync(record, CancellationToken.None).ConfigureAwait(false);
+    }
+
+    private async Task RecordExceptionAsync(
+        AgentDescriptor descriptor,
+        AgentRunContext context,
+        object? input,
+        DateTimeOffset startedAt,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        if (_runRecordStore is null)
+            return;
+
+        var endedAt = _timeProvider.GetUtcNow();
+        var record = new AgentRunRecord(
+            RunId: AgentRunId.NewId(),
+            AgentId: descriptor.Id,
+            AgentVersion: descriptor.Version,
+            AgentKind: descriptor.Kind,
+            CorrelationId: context.CorrelationId,
+            ProjectId: context.ProjectId,
+            ProjectRevision: context.ProjectRevision,
+            Actor: context.Actor,
+            InputFingerprint: ComputeInputFingerprint(input),
+            InputSummary: ComputeInputSummary(input),
+            StartedAt: startedAt,
+            EndedAt: endedAt,
+            Status: AgentRunStatus.Failed,
+            Issues: Array.Empty<string>(),
+            Warnings: Array.Empty<string>(),
+            ProvenanceRefs: Array.Empty<string>(),
+            OutputRefs: Array.Empty<string>(),
+            OutputSummary: null,
+            ErrorCode: "agent.execution.exception",
+            ErrorDetail: exception.GetType().FullName ?? exception.GetType().Name);
+
+        await _runRecordStore.AppendAsync(record, CancellationToken.None).ConfigureAwait(false);
+    }
+
+    private static string ComputeInputSummary(object? input)
+    {
+        var typeName = input?.GetType().FullName ?? "null";
+        return $"type={typeName}";
+    }
+
+    private static string ComputeInputFingerprint(object? input)
+    {
+        var summary = ComputeInputSummary(input);
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(summary));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
+    private static string ComputeOutputSummary<TOutput>(AgentResult<TOutput> result)
+    {
+        var outputType = result.Output?.GetType().FullName ?? typeof(TOutput).FullName ?? "unknown";
+        return $"type={outputType};success={result.IsSuccess}";
+    }
+
 
     private static AgentResult<TOutput> MapUntypedResult<TOutput>(AgentId agentId, AgentResult<object?> result)
     {

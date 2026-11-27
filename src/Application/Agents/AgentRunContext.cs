@@ -4,14 +4,15 @@ using OneClick.Core.Ids;
 namespace OneClick.Application.Agents;
 
 /// <summary>
-/// Execution context for a local agent run. Carries project/actor identity and correlation
-/// metadata; it does not grant authorization.
+/// Execution context for a local agent run. Carries project/actor identity, correlation,
+/// and optional revision metadata; it does not grant authorization.
 /// </summary>
 public sealed record AgentRunContext(
     ProjectId ProjectId,
     ActorContext Actor,
     string CorrelationId,
-    CancellationToken CancellationToken)
+    CancellationToken CancellationToken,
+    ProjectRevision ProjectRevision = default)
 {
     public string CorrelationId { get; } = Require(CorrelationId, nameof(CorrelationId));
 

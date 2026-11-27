@@ -1,4 +1,5 @@
-﻿using OneClick.Application.Persistence;
+﻿using OneClick.Application.Agents.Audit;
+using OneClick.Application.Persistence;
 using OneClick.Application.Services;
 
 namespace OneClick.Application.Agents.Takeoff;
@@ -44,11 +45,13 @@ public static class TakeoffAgentRegistration
     /// <summary>
     /// Creates a new in-memory registry with first-slice takeoff agents registered.
     /// </summary>
-    public static InMemoryLocalAgentRegistry CreateTakeoffRegistry(IProjectDomainStateStore domainStateStore)
+    public static InMemoryLocalAgentRegistry CreateTakeoffRegistry(
+        IProjectDomainStateStore domainStateStore,
+        IAgentRunRecordStore? runRecordStore = null)
     {
         ArgumentNullException.ThrowIfNull(domainStateStore);
 
-        var registry = new InMemoryLocalAgentRegistry();
+        var registry = new InMemoryLocalAgentRegistry(runRecordStore);
         registry.RegisterTakeoffAgents(domainStateStore);
         return registry;
     }

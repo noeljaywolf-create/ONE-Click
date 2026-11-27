@@ -111,6 +111,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
                     <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0"
@@ -130,6 +131,7 @@
                 </Border>
 
                 <Border Grid.Row="1"
+                        Margin="0,0,0,10"
                         BorderBrush="#FFCCCCCC"
                         BorderThickness="1"
                         CornerRadius="4">
@@ -140,6 +142,21 @@
                                    Text="Snapshot / Export" />
                         <ContentControl x:Name="SnapshotRegion" Margin="10,0,10,10">
                             <controls:SnapshotPanel x:Name="SnapshotPanelControl" />
+                        </ContentControl>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Row="2"
+                        BorderBrush="#FFCCCCCC"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top"
+                                   Margin="10,10,10,6"
+                                   FontWeight="SemiBold"
+                                   Text="Agents" />
+                        <ContentControl x:Name="AgentRegion" Margin="10,0,10,10">
+                            <controls:AgentPanel x:Name="AgentPanelControl" />
                         </ContentControl>
                     </DockPanel>
                 </Border>

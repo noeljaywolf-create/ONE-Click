@@ -1,4 +1,6 @@
-﻿using OneClick.Application.Contracts;
+﻿using System.Collections.ObjectModel;
+using OneClick.Application.Agents;
+using OneClick.Application.Contracts;
 using OneClick.Application.Persistence;
 using OneClick.Core.Domain;
 using OneClick.Core.Ids;
@@ -91,6 +93,21 @@ public sealed class MainViewModel : ViewModelBase
             StatusMessage = statusMessage;
     }
 
+    public void RefreshAgentCollections()
+    {
+        AgentDescriptors.Clear();
+        RecentAgentRuns.Clear();
+
+        if (AgentRuntime is null)
+            return;
+
+        foreach (var descriptor in AgentRuntime.GetDescriptors())
+            AgentDescriptors.Add(descriptor);
+
+        foreach (var run in AgentRuntime.GetRecentRuns())
+            RecentAgentRuns.Add(run);
+    }
+
     public string KnownLimitations
     {
         get => _knownLimitations;
@@ -108,6 +125,10 @@ public sealed class MainViewModel : ViewModelBase
     public IProjectDomainStateStore? DomainStateStore { get; private set; }
     public ActorContext? ActorContext { get; private set; }
     public ProjectId? CurrentProjectId { get; private set; }
+    public DesktopAgentRuntimeService? AgentRuntime { get; private set; }
+    public ILocalAgentRegistry? AgentRegistry => AgentRuntime?.Registry;
+    public ObservableCollection<AgentDescriptor> AgentDescriptors { get; } = [];
+    public ObservableCollection<AgentRunRecord> RecentAgentRuns { get; } = [];
 
     /// <summary>Optional shell callback invoked after a successful baseline load/reload.</summary>
     public Func<Task>? AfterInitializeAsync { get; set; }
@@ -128,6 +149,7 @@ public sealed class MainViewModel : ViewModelBase
             DomainStateStore = result.DomainStateStore;
             ActorContext = result.ActorContext;
             CurrentProjectId = result.ProjectId;
+            AgentRuntime = result.AgentRuntime;
 
             ProjectId = result.ProjectId.Value;
             ProjectRevision = result.Revision.Value;
@@ -136,6 +158,7 @@ public sealed class MainViewModel : ViewModelBase
             KnownLimitations = "in-memory-skeleton; synthetic baseline only";
             IsLoaded = true;
             StatusMessage = result.StatusMessage;
+            RefreshAgentCollections();
             if (AfterInitializeAsync is not null)
                 await AfterInitializeAsync().ConfigureAwait(true);
         }

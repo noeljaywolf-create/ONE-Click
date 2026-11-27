@@ -1,9 +1,12 @@
 ﻿using System.Linq;
 using System.Threading;
 using System.Windows;
+using OneClick.Application.Agents;
 using OneClick.Application.Commands;
+using OneClick.Application.Contracts;
 using OneClick.Application.Services;
 using OneClick.Core.Domain;
+using OneClick.Core.Ids;
 using OneClick.Core.TaggedValues;
 using OneClick.Desktop.ViewModels;
 using OneClick.Desktop.ViewModels.Geometry;
@@ -86,6 +89,8 @@ public partial class MainWindow : Window
                 ViewModel.LastRefreshedDisplay = DateTimeOffset.Now.ToString("HH:mm:ss");
             }
         };
+
+        WireAgentPanel();
     }
 
     public MainViewModel ViewModel { get; }
@@ -150,6 +155,7 @@ public partial class MainWindow : Window
         }
 
         ViewModel.SyncFromDomainState(state, BuildRefreshStatus(state, statusMessage));
+        RefreshAgentPanel();
     }
 
     private void RestoreSelection(string? selectedPieceId)
@@ -278,6 +284,57 @@ public partial class MainWindow : Window
         SnapshotPanelControl.ViewModel.SetManifest(manifest, factualStatus);
         ViewModel.StatusMessage = factualStatus;
         return manifest;
+    }
+
+    private void WireAgentPanel()
+    {
+        var vm = AgentPanelControl.ViewModel;
+        vm.LoadAgentsAction = () => ViewModel.AgentRegistry?.GetDescriptors() ?? Array.Empty<AgentDescriptor>();
+        vm.ExecuteAgentAction = ExecuteAgentFromPanelAsync;
+        vm.GetDefaultProjectId = () => ViewModel.ProjectId;
+        if (!string.IsNullOrWhiteSpace(ViewModel.ProjectId))
+            vm.ProjectIdInput = ViewModel.ProjectId;
+        vm.RefreshAgents();
+    }
+
+    private void RefreshAgentPanel()
+    {
+        var vm = AgentPanelControl.ViewModel;
+        if (!string.IsNullOrWhiteSpace(ViewModel.ProjectId))
+            vm.ProjectIdInput = ViewModel.ProjectId;
+        vm.RefreshAgents();
+        ViewModel.RefreshAgentCollections();
+    }
+
+    private async Task<AgentResult<object?>> ExecuteAgentFromPanelAsync(AgentId agentId, object? input, CancellationToken cancellationToken)
+    {
+        if (ViewModel.AgentRuntime is null || ViewModel.CurrentProjectId is null || ViewModel.ActorContext is null)
+        {
+            return AgentResult<object?>.Failure(
+                "Agent runtime not initialized. Load the baseline project first.",
+                "agent.runtime.not_initialized");
+        }
+
+        var context = new AgentRunContext(
+            ViewModel.CurrentProjectId.Value,
+            ViewModel.ActorContext,
+            Guid.NewGuid().ToString("N"),
+            cancellationToken,
+            new ProjectRevision(ViewModel.ProjectRevision));
+
+        var request = new AgentRequest<object?>(input);
+        var result = await ViewModel.AgentRuntime.ExecuteAsync(agentId, request, context, cancellationToken).ConfigureAwait(true);
+
+        await Dispatcher.InvokeAsync(() =>
+        {
+            ViewModel.RefreshAgentCollections();
+            ViewModel.StatusMessage = result.IsSuccess
+                ? $"Local agent '{agentId.Value}' completed."
+                : $"Local agent '{agentId.Value}' failed: {result.ErrorCode ?? "unknown"}";
+            ViewModel.LastRefreshedDisplay = DateTimeOffset.Now.ToString("HH:mm:ss");
+        });
+
+        return result;
     }
 
     private static string FormatIssueIds(IReadOnlyList<string> issueIds)
