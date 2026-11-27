@@ -33,19 +33,28 @@ public sealed class LocalTakeoffAgentIntegrationTests
         TakeoffAgentRegistration.RegisterTakeoffAgents(registry, store);
 
         var descriptors = registry.GetDescriptors();
-        Assert.Equal(3, descriptors.Count);
+        Assert.Equal(6, descriptors.Count);
         Assert.All(descriptors, d => Assert.Equal(AgentKind.Deterministic, d.Kind));
 
         AssertDescriptor(descriptors, "takeoff.baseline.load", "Baseline Load");
         AssertDescriptor(descriptors, "takeoff.ledger.calculate", "Ledger Calculation");
         AssertDescriptor(descriptors, "takeoff.snapshot.freeze", "Snapshot Freeze");
+        AssertDescriptor(descriptors, "takeoff.document.import", "Import Document");
+        AssertDescriptor(descriptors, "takeoff.calibration.set", "Set Calibration");
+        AssertDescriptor(descriptors, "takeoff.validation.run", "Takeoff Validation");
 
         Assert.True(registry.TryGet(new AgentId("takeoff.baseline.load"), out var baseline));
         Assert.True(registry.TryGet(new AgentId("takeoff.ledger.calculate"), out var ledger));
         Assert.True(registry.TryGet(new AgentId("takeoff.snapshot.freeze"), out var freeze));
+        Assert.True(registry.TryGet(new AgentId("takeoff.document.import"), out var importDoc));
+        Assert.True(registry.TryGet(new AgentId("takeoff.calibration.set"), out var calibration));
+        Assert.True(registry.TryGet(new AgentId("takeoff.validation.run"), out var validation));
         Assert.NotNull(baseline);
         Assert.NotNull(ledger);
         Assert.NotNull(freeze);
+        Assert.NotNull(importDoc);
+        Assert.NotNull(calibration);
+        Assert.NotNull(validation);
     }
 
     [Fact]
@@ -56,7 +65,7 @@ public sealed class LocalTakeoffAgentIntegrationTests
         var registry = TakeoffAgentRegistration.CreateTakeoffRegistry(store);
 
         Assert.IsType<InMemoryLocalAgentRegistry>(registry);
-        Assert.Equal(3, registry.GetDescriptors().Count);
+        Assert.Equal(6, registry.GetDescriptors().Count);
     }
 
     [Fact]
@@ -224,6 +233,48 @@ public sealed class LocalTakeoffAgentIntegrationTests
         var persisted = await store.GetAsync(projectId);
         Assert.NotNull(persisted);
         Assert.Contains(persisted!.SnapshotManifests, m => m.SnapshotId == "snap-integration-1");
+    }
+
+    [Fact]
+    public async Task ValidationAgent_ThroughRegistry_ReportsIssuesCoverageAndLimitations()
+    {
+        var store = new InMemoryProjectDomainStateStore();
+        var registry = TakeoffAgentRegistration.CreateTakeoffRegistry(store);
+        var projectId = new ProjectId("project:integration-validation");
+        var context = CreateContext(projectId);
+
+        await LoadBaselineAsync(registry, projectId, context);
+
+        var state = await store.GetAsync(projectId);
+        Assert.NotNull(state);
+        var b3d = state!.GetRequiredPiece("B3D");
+        state.UpsertPiece(b3d with
+        {
+            EndElevation = new UnknownValue(
+                SiUnit.Meter,
+                b3d.SourceRefs,
+                b3d.MethodVersion,
+                "Elevation unknown at end of B3D for validation integration test.",
+                ["issue:elevation-unknown:B3D:end"])
+        });
+        await store.SaveAsync(state);
+
+        var result = await registry.ExecuteAsync<ValidationInput, ValidationOutput>(
+            new AgentId("takeoff.validation.run"),
+            AgentRequest<ValidationInput>.From(new ValidationInput(projectId)),
+            context);
+
+        Assert.True(result.IsSuccess, result.ErrorDetail);
+        var output = Assert.IsType<ValidationOutput>(result.Output);
+        Assert.Equal(10, output.Counts.PiecesChecked);
+        Assert.True(output.Counts.IssueCount > 0);
+        Assert.True(output.Counts.UnknownQuantityCount > 0);
+        Assert.Contains(output.Findings, f => f.Severity == ValidationFindingSeverity.Issue);
+        Assert.Contains(output.Coverage, c => c.Contains("RouteLedgerCalculator", StringComparison.Ordinal));
+        Assert.Contains(output.Limitations, l => l.Contains("not NFPA/regulatory certification", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(output.Limitations, l => l.Contains("No cloud LLM/network calls", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(output.SourceRefs, r => r.StartsWith("project:", StringComparison.Ordinal));
+        Assert.Contains(result.Issues, i => i == "validation.elevation.unknown");
     }
 
     [Fact]

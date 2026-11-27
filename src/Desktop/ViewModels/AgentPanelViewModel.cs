@@ -4,6 +4,7 @@ using System.Windows.Input;
 using OneClick.Application.Agents;
 using OneClick.Application.Agents.Takeoff;
 using OneClick.Core.Ids;
+using OneClick.Desktop.Services;
 
 namespace OneClick.Desktop.ViewModels;
 
@@ -38,6 +39,7 @@ public sealed class AgentPanelViewModel : ViewModelBase
         Issues = new ObservableCollection<string>();
         Warnings = new ObservableCollection<string>();
         ProvenanceRefs = new ObservableCollection<string>();
+        RecentRunHistory = new ObservableCollection<AgentRunHistoryRow>();
     }
 
     /// <summary>Shell wiring: returns available local agents. Called by RefreshAgents/RefreshAgentsCommand.</summary>
@@ -55,6 +57,9 @@ public sealed class AgentPanelViewModel : ViewModelBase
     /// <summary>Shell wiring: optional default fixture path provider for baseline load.</summary>
     public Func<string?>? GetDefaultFixturePath { get; set; }
 
+    /// <summary>Shell wiring: returns recent local agent run records for audit/history display.</summary>
+    public Func<IReadOnlyList<AgentRunRecord>>? LoadRecentRunsAction { get; set; }
+
     public ICommand RunAgentCommand { get; }
     public ICommand RefreshAgentsCommand { get; }
 
@@ -62,6 +67,7 @@ public sealed class AgentPanelViewModel : ViewModelBase
     public ObservableCollection<string> Issues { get; }
     public ObservableCollection<string> Warnings { get; }
     public ObservableCollection<string> ProvenanceRefs { get; }
+    public ObservableCollection<AgentRunHistoryRow> RecentRunHistory { get; }
 
     public AgentDescriptor? SelectedAgent
     {
@@ -212,7 +218,35 @@ public sealed class AgentPanelViewModel : ViewModelBase
             : Agents[0];
 
         ApplyDefaultsFromShell();
-        SetStatus($"Loaded {Agents.Count} local deterministic agent(s). No OpenAI/cloud LLM is used.");
+        var historyError = RefreshRunHistory();
+        var status = $"Loaded {Agents.Count} local deterministic agent(s). No OpenAI/cloud LLM is used.";
+        if (historyError is not null)
+            status += " Run history refresh failed: " + historyError;
+        SetStatus(status, isError: historyError is not null);
+    }
+
+    /// <summary>
+    /// Refreshes recent local run history from the shell-wired callback.
+    /// Returns null on success (or when no callback is wired); otherwise returns an error message.
+    /// </summary>
+    public string? RefreshRunHistory()
+    {
+        RecentRunHistory.Clear();
+
+        IReadOnlyList<AgentRunRecord> records;
+        try
+        {
+            records = LoadRecentRunsAction?.Invoke() ?? Array.Empty<AgentRunRecord>();
+        }
+        catch (Exception ex)
+        {
+            return ex.Message;
+        }
+
+        foreach (var record in records)
+            RecentRunHistory.Add(AgentRunHistoryRow.FromRecord(record));
+
+        return null;
     }
 
     private async Task RunSelectedAgentAsync()
@@ -245,6 +279,9 @@ public sealed class AgentPanelViewModel : ViewModelBase
 
             var result = await ExecuteAgentAction(SelectedAgent.Id, input, CancellationToken.None).ConfigureAwait(true);
             ApplyResult(result);
+            var historyError = RefreshRunHistory();
+            if (historyError is not null)
+                SetStatus(StatusMessage + " Run history refresh failed: " + historyError, isError: true);
         }
         catch (OperationCanceledException)
         {

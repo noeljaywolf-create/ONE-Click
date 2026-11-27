@@ -5,12 +5,13 @@ using OneClick.Application.Services;
 namespace OneClick.Application.Agents.Takeoff;
 
 /// <summary>
-/// Registers the first-slice deterministic local takeoff agents into a local agent registry.
+/// Registers deterministic local takeoff agents into a local agent registry.
 /// </summary>
 public static class TakeoffAgentRegistration
 {
     /// <summary>
-    /// Registers baseline load, ledger calculation, and snapshot freeze agents.
+    /// Registers baseline load, ledger calculation, snapshot freeze, document import metadata,
+    /// calibration metadata, and deterministic validation agents.
     /// All agents are local/offline and deterministic; no network/AI calls.
     /// </summary>
     public static ILocalAgentRegistry RegisterTakeoffAgents(
@@ -24,8 +25,8 @@ public static class TakeoffAgentRegistration
     }
 
     /// <summary>
-    /// Registers baseline load, ledger calculation, and snapshot freeze agents with an explicit
-    /// snapshot freeze service.
+    /// Registers baseline load, ledger calculation, snapshot freeze, document import metadata,
+    /// calibration metadata, and deterministic validation agents with an explicit snapshot freeze service.
     /// </summary>
     public static ILocalAgentRegistry RegisterTakeoffAgents(
         this ILocalAgentRegistry registry,
@@ -39,11 +40,14 @@ public static class TakeoffAgentRegistration
         registry.Register(new BaselineLoadAgent(domainStateStore));
         registry.Register(new LedgerCalculationAgent(domainStateStore));
         registry.Register(new SnapshotFreezeAgent(snapshotFreezeService));
+        registry.Register(new ImportDocumentAgent(domainStateStore));
+        registry.Register(new SetCalibrationAgent(domainStateStore));
+        registry.Register(new ValidationAgent(domainStateStore));
         return registry;
     }
 
     /// <summary>
-    /// Creates a new in-memory registry with first-slice takeoff agents registered.
+    /// Creates a new in-memory registry with deterministic takeoff agents registered.
     /// </summary>
     public static InMemoryLocalAgentRegistry CreateTakeoffRegistry(
         IProjectDomainStateStore domainStateStore,

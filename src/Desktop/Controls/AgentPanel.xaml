@@ -165,6 +165,39 @@
                 </StackPanel>
             </Border>
 
+            <Border BorderBrush="#999" BorderThickness="1" Padding="10" Margin="0,0,0,12">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,8">
+                        <TextBlock Style="{StaticResource SectionHeader}" Text="Recent Local Run History / Audit" DockPanel.Dock="Left" />
+                        <TextBlock DockPanel.Dock="Right" Text="Local deterministic records only - no OpenAI/cloud LLM" Foreground="#444" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBlock Text="Factual run metadata from the local Desktop agent runtime. Refresh after execution or via Refresh."
+                               TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#444" />
+                    <DataGrid ItemsSource="{Binding RecentRunHistory}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              CanUserAddRows="False"
+                              HeadersVisibility="Column"
+                              MinHeight="90"
+                              MaxHeight="220"
+                              Margin="0,0,0,0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Agent Name" Binding="{Binding AgentName}" Width="150" />
+                            <DataGridTextColumn Header="Agent ID" Binding="{Binding AgentId}" Width="170" />
+                            <DataGridTextColumn Header="Started" Binding="{Binding StartedAt}" Width="135" />
+                            <DataGridTextColumn Header="Finished" Binding="{Binding FinishedAt}" Width="135" />
+                            <DataGridTextColumn Header="Duration" Binding="{Binding Duration}" Width="90" />
+                            <DataGridTextColumn Header="Outcome" Binding="{Binding Outcome}" Width="70" />
+                            <DataGridTextColumn Header="Error" Binding="{Binding ErrorCode}" Width="120" />
+                            <DataGridTextColumn Header="Issues" Binding="{Binding IssueCount}" Width="55" />
+                            <DataGridTextColumn Header="Warnings" Binding="{Binding WarningCount}" Width="70" />
+                            <DataGridTextColumn Header="Provenance" Binding="{Binding ProvenanceRefCount}" Width="75" />
+                            <DataGridTextColumn Header="Correlation ID" Binding="{Binding CorrelationId}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+
             <Grid Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />

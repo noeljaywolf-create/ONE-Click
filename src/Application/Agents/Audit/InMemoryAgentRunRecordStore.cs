@@ -52,4 +52,21 @@ public sealed class InMemoryAgentRunRecordStore : IAgentRunRecordStore
             return Task.FromResult(matches);
         }
     }
+
+    public Task<IReadOnlyList<AgentRunRecord>> GetRecentAsync(int maxCount, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (maxCount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxCount), "maxCount must be positive.");
+
+        lock (_gate)
+        {
+            IReadOnlyList<AgentRunRecord> matches = _records
+                .AsEnumerable()
+                .Reverse()
+                .Take(maxCount)
+                .ToArray();
+            return Task.FromResult(matches);
+        }
+    }
 }

@@ -13,4 +13,6 @@ public interface IAgentRunRecordStore
     Task<IReadOnlyList<AgentRunRecord>> GetByProjectAsync(ProjectId projectId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<AgentRunRecord>> GetByCorrelationIdAsync(string correlationId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AgentRunRecord>> GetRecentAsync(int maxCount, CancellationToken cancellationToken = default);
 }

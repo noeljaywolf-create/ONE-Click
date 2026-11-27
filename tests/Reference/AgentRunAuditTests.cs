@@ -121,6 +121,21 @@ public sealed class AgentRunAuditTests
     }
 
     [Fact]
+    public async Task InMemoryAgentRunRecordStore_GetRecent_ReturnsMostRecentlyAppendedFirst()
+    {
+        var store = new InMemoryAgentRunRecordStore();
+        var project = new ProjectId("project-a");
+
+        await store.AppendAsync(CreateRecord("run-1", "agent.one", project, "corr-1", AgentRunStatus.Succeeded));
+        await store.AppendAsync(CreateRecord("run-2", "agent.one", project, "corr-2", AgentRunStatus.Succeeded));
+        await store.AppendAsync(CreateRecord("run-3", "agent.one", project, "corr-3", AgentRunStatus.Failed));
+
+        var recent = await store.GetRecentAsync(2);
+
+        Assert.Equal(["run-3", "run-2"], recent.Select(r => r.RunId.Value).ToArray());
+    }
+
+    [Fact]
     public async Task Registry_RecordsSuccessfulRun_WithAuditFields()
     {
         var store = new InMemoryAgentRunRecordStore();

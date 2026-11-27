@@ -290,6 +290,7 @@ public partial class MainWindow : Window
     {
         var vm = AgentPanelControl.ViewModel;
         vm.LoadAgentsAction = () => ViewModel.AgentRegistry?.GetDescriptors() ?? Array.Empty<AgentDescriptor>();
+        vm.LoadRecentRunsAction = () => ViewModel.AgentRuntime?.GetRecentRuns() ?? Array.Empty<OneClick.Desktop.Services.AgentRunRecord>();
         vm.ExecuteAgentAction = ExecuteAgentFromPanelAsync;
         vm.GetDefaultProjectId = () => ViewModel.ProjectId;
         if (!string.IsNullOrWhiteSpace(ViewModel.ProjectId))
