@@ -57,8 +57,6 @@ public sealed class CommandDispatchTests
 
         ProjectCommand[] commands =
         [
-            new ImportDocumentCommand("upload-1", "Plan", "a.pdf"),
-            new SetCalibrationCommand("region-1", [new CalibrationControlPoint(0, 0, 0, 0, null)], null),
             new PlaceComponentCommand(null, "part-1", "rel-1", new ComponentPlacement(1, 2, null, 0), null),
             new ConnectPortsCommand("port-a", "port-b", null),
             new AcceptProposalCommand("proposal-1", null),

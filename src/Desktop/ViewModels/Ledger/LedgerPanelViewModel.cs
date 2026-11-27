@@ -15,6 +15,8 @@ public sealed class LedgerPanelViewModel : ViewModelBase
     private LedgerTaggedValueDisplay _routeTotal = LedgerTaggedValueDisplay.FromTaggedValue(null, "Route total");
     private LedgerTaggedValueDisplay _cutTotal = LedgerTaggedValueDisplay.FromTaggedValue(null, "Cut total");
     private string _issuesSummary = "No issues.";
+    private bool _hasIssues;
+    private int _issueCount;
     private string _routeBreakdownSummary = "Known: 0, Provisional: 0, Unknown: 0";
     private string _cutBreakdownSummary = "Known: 0, Provisional: 0, Unknown: 0";
     private string _elevationInputError = string.Empty;
@@ -104,6 +106,18 @@ public sealed class LedgerPanelViewModel : ViewModelBase
     {
         get => _issuesSummary;
         private set => SetProperty(ref _issuesSummary, value);
+    }
+
+    public bool HasIssues
+    {
+        get => _hasIssues;
+        private set => SetProperty(ref _hasIssues, value);
+    }
+
+    public int IssueCount
+    {
+        get => _issueCount;
+        private set => SetProperty(ref _issueCount, value);
     }
 
     public string RouteBreakdownSummary
@@ -200,8 +214,9 @@ public sealed class LedgerPanelViewModel : ViewModelBase
     /// <summary>
     /// Application/shell callback. The control invokes this when the user requests an elevation edit.
     /// The shell should connect this to Application services/commands.
+    /// Return a status message to display, or null to use the default completion message.
     /// </summary>
-    public Func<LedgerElevationEditRequest, Task>? OnElevationEditRequested { get; set; }
+    public Func<LedgerElevationEditRequest, Task<string?>>? OnElevationEditRequested { get; set; }
 
     public void Refresh(IEnumerable<RoutePiece> pieces, ProjectRouteLedgers? ledgers = null)
     {
@@ -223,7 +238,10 @@ public sealed class LedgerPanelViewModel : ViewModelBase
         CutTotal = LedgerTaggedValueDisplay.FromTaggedValue(computedLedgers.CutTotal, "Cut total");
         UpdateBreakdowns(computedLedgers);
 
-        IssuesSummary = BuildIssuesSummary(computedLedgers);
+        var (issueSummary, hasIssues, issueCount) = BuildIssuesSummary(computedLedgers);
+        IssuesSummary = issueSummary;
+        HasIssues = hasIssues;
+        IssueCount = issueCount;
 
         if (selectedId is not null)
             SelectedPiece = Pieces.FirstOrDefault(p => string.Equals(p.PieceId, selectedId, StringComparison.Ordinal));
@@ -293,8 +311,8 @@ public sealed class LedgerPanelViewModel : ViewModelBase
         {
             IsBusy = true;
             SetStatus(pendingMessage, isError: false);
-            await OnElevationEditRequested(request).ConfigureAwait(true);
-            SetStatus(pendingMessage + " Completed.", isError: false);
+            var completionStatus = await OnElevationEditRequested(request).ConfigureAwait(true);
+            SetStatus(string.IsNullOrWhiteSpace(completionStatus) ? pendingMessage + " Completed." : completionStatus, isError: false);
         }
         catch (Exception ex)
         {
@@ -400,17 +418,18 @@ public sealed class LedgerPanelViewModel : ViewModelBase
     private static string FormatBreakdown(int known, int provisional, int unknown)
         => $"Known: {known}, Provisional: {provisional}, Unknown: {unknown}";
 
-    private static string BuildIssuesSummary(ProjectRouteLedgers ledgers)
+    private static (string Summary, bool HasIssues, int Count) BuildIssuesSummary(ProjectRouteLedgers ledgers)
     {
         var issues = ledgers.IssueIds
             .Where(i => !string.IsNullOrWhiteSpace(i))
             .Distinct(StringComparer.Ordinal)
+            .OrderBy(i => i, StringComparer.Ordinal)
             .ToArray();
 
         if (issues.Length == 0)
-            return "No issues. Unknowns, where present, are explicitly marked and are not treated as zero.";
+            return ("No active issues. Unknowns, where present, are explicitly marked and are not treated as zero.", false, 0);
 
-        return $"Issues ({issues.Length}): {string.Join(", ", issues)}";
+        return ($"Issues ({issues.Length}): {string.Join(", ", issues)}", true, issues.Length);
     }
 
     private void SetStatus(string message, bool isError)

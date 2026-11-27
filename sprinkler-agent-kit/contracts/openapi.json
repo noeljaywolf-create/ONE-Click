@@ -1494,6 +1494,9 @@
           },
           "worldFrame": {
             "const": "right_handed_z_up_metres"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ProjectScope"
           }
         },
         "required": [
@@ -1502,7 +1505,39 @@
           "name",
           "capabilities",
           "scopeDescription",
-          "worldFrame"
+          "worldFrame",
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectScope": {
+        "type": "object",
+        "properties": {
+          "hasAcceptedModel": {
+            "type": "boolean"
+          },
+          "knownLimitations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "pieceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "snapshotCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "hasAcceptedModel",
+          "knownLimitations",
+          "pieceCount",
+          "snapshotCount"
         ],
         "additionalProperties": false
       },

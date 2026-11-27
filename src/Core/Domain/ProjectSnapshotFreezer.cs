@@ -1,6 +1,4 @@
-﻿using OneClick.Core.Formulas;
-using OneClick.Core.Geometry;
-using OneClick.Core.TaggedValues;
+﻿using OneClick.Core.TaggedValues;
 using OneClick.Core.Units;
 
 namespace OneClick.Core.Domain;
@@ -8,13 +6,16 @@ namespace OneClick.Core.Domain;
 /// <summary>
 /// Deterministic first-slice snapshot freezer. Freezes current project domain state into an
 /// immutable SnapshotManifest with known/provisional/unknown quantities separated.
+/// Route/cut calculations are delegated to <see cref="RouteLedgerCalculator"/> as the single source of truth.
 /// Unknown is preserved as unknown (null value), never zero.
 /// </summary>
 public static class ProjectSnapshotFreezer
 {
-    public const string RouteLedger = "route";
-    public const string CutLedger = "synthetic-cut";
+    public const string RouteLedger = RouteLedgerCalculator.RouteLedgerName;
+    public const string CutLedger = RouteLedgerCalculator.CutLedgerName;
     public const string DefaultGroup = "synthetic-baseline";
+
+    /// <summary>Snapshot manifest method version; per-quantity method versions come from RouteLedgerCalculator.</summary>
     public const string DefaultMethodVersion = "snapshot-freeze.v1";
 
     public static SnapshotManifest Freeze(
@@ -39,74 +40,67 @@ public static class ProjectSnapshotFreezer
         Guard.Required(snapshotId, nameof(snapshotId));
 
         var exclusionSet = NormalizeExclusions(exclusions);
-        var sourceRefs = new List<string> { $"project:{snapshot.ProjectId.Value}", $"revision:{snapshot.Revision}" };
+        var snapshotSourceRefs = new List<string> { $"project:{snapshot.ProjectId.Value}", $"revision:{snapshot.Revision}" };
         var issues = new List<string>();
 
-        var knownRoute = new List<(RoutePiece Piece, double RouteM, double CutM)>();
-        var unknownRoutePieces = new List<RoutePiece>();
-        var provisionalRoutePieces = new List<RoutePiece>();
+        var knownRoute = new List<(string PieceId, double RouteM, double CutM, IReadOnlyList<string> SourceRefs)>();
+        var provisionalLines = new List<SnapshotQuantityLine>();
+        var unknownLines = new List<SnapshotQuantityLine>();
 
         foreach (var piece in snapshot.Pieces.OrderBy(p => p.Id, StringComparer.Ordinal))
         {
             if (exclusionSet.Contains($"piece:{piece.Id}"))
-            {
                 continue;
-            }
-
-            var hasUnknownElevation = piece.StartElevation is UnknownValue || piece.EndElevation is UnknownValue;
-            var hasProvisionalElevation = piece.StartElevation is ProvisionalValue || piece.EndElevation is ProvisionalValue;
 
             CollectElevationIssues(piece.StartElevation, issues);
             CollectElevationIssues(piece.EndElevation, issues);
 
-            if (hasUnknownElevation)
+            var ledger = RouteLedgerCalculator.ComputePiece(piece);
+            var refs = MergeRefs(snapshotSourceRefs, ledger.SourceRefs);
+
+            var hasUnknownElevation = piece.StartElevation is UnknownValue || piece.EndElevation is UnknownValue;
+            var hasProvisionalElevation = piece.StartElevation is ProvisionalValue || piece.EndElevation is ProvisionalValue;
+
+            if (hasUnknownElevation || IsUnknownLedger(ledger))
             {
-                unknownRoutePieces.Add(piece);
+                var reason = GetUnknownReason(piece.StartElevation, piece.EndElevation)
+                    ?? GetLedgerUnknownReason(ledger)
+                    ?? "Unknown elevation affects quantity.";
+                CollectLedgerIssues(ledger, issues);
+                AddUnknownPieceLines(unknownLines, piece, ledger, refs, reason);
                 continue;
             }
 
             if (hasProvisionalElevation)
             {
-                provisionalRoutePieces.Add(piece);
-                // Provisional elevation means length is provisional in this slice.
-                // Compute geometric length but mark as provisional.
+                AddProvisionalPieceLines(provisionalLines, piece, ledger, refs);
                 continue;
             }
 
-            var routeResult = GeometryFormulas.StraightSegmentLength(
-                SpatialEndpoint.FromPoint3D(piece.StartM),
-                SpatialEndpoint.FromPoint3D(piece.EndM),
-                piece.SourceRefs);
-            if (routeResult is KnownValue knownRouteValue)
+            if (ledger.RouteLength is KnownValue routeKnown && ledger.CutLength is KnownValue cutKnown)
             {
-                var cutM = Guard.Finite(knownRouteValue.Value - piece.StartNetOffsetM - piece.EndNetOffsetM, "cutLengthM");
-                knownRoute.Add((piece, knownRouteValue.Value, cutM));
+                knownRoute.Add((piece.Id, routeKnown.Value, cutKnown.Value, refs));
             }
-            else if (routeResult is UnknownValue uv)
+            else
             {
-                unknownRoutePieces.Add(piece);
-                issues.AddRange(uv.IssueRefs);
-            }
-            else if (routeResult is ProvisionalValue pv)
-            {
-                provisionalRoutePieces.Add(piece);
+                // Defensive: calculator should not produce non-known/non-unknown here, but never coerce to zero.
+                var reason = GetLedgerUnknownReason(ledger) ?? "Route/cut could not be determined.";
+                AddUnknownPieceLines(unknownLines, piece, ledger, refs, reason);
             }
         }
 
         var knownQuantities = new List<SnapshotQuantityLine>();
-        var provisionalQuantities = new List<SnapshotQuantityLine>();
-        var unknownQuantities = new List<SnapshotQuantityLine>();
-
         if (knownRoute.Count > 0)
         {
+            var allKnownRefs = MergeRefs(snapshotSourceRefs, knownRoute.SelectMany(p => p.SourceRefs).ToArray());
             knownQuantities.Add(new SnapshotQuantityLine(
                 RouteLedger,
                 DefaultGroup,
                 SiUnit.Meter.ToString(),
                 knownRoute.Sum(p => p.RouteM),
                 SnapshotQuantityStatus.Known,
-                sourceRefs: sourceRefs,
-                methodVersion: DefaultMethodVersion));
+                sourceRefs: allKnownRefs,
+                methodVersion: RouteLedgerCalculator.RouteMethodVersion));
 
             knownQuantities.Add(new SnapshotQuantityLine(
                 CutLedger,
@@ -114,62 +108,30 @@ public static class ProjectSnapshotFreezer
                 SiUnit.Meter.ToString(),
                 knownRoute.Sum(p => p.CutM),
                 SnapshotQuantityStatus.Known,
-                sourceRefs: sourceRefs,
-                methodVersion: DefaultMethodVersion));
+                sourceRefs: allKnownRefs,
+                methodVersion: RouteLedgerCalculator.CutMethodVersion));
         }
 
-        foreach (var piece in provisionalRoutePieces.OrderBy(p => p.Id, StringComparer.Ordinal))
-        {
-            var routeResult = GeometryFormulas.StraightSegmentLength(
-                SpatialEndpoint.FromPoint3D(piece.StartM),
-                SpatialEndpoint.FromPoint3D(piece.EndM),
-                piece.SourceRefs);
-            var routeM = routeResult switch
-            {
-                KnownValue k => k.Value,
-                ProvisionalValue p => p.Value,
-                _ => (double?)null
-            };
-            if (routeM.HasValue)
-            {
-                var cutM = Guard.Finite(routeM.Value - piece.StartNetOffsetM - piece.EndNetOffsetM, "cutLengthM");
-                var refs = MergeRefs(sourceRefs, piece.SourceRefs);
-                provisionalQuantities.Add(new SnapshotQuantityLine(RouteLedger, piece.Id, SiUnit.Meter.ToString(), routeM.Value, SnapshotQuantityStatus.Provisional,
-                    reason: "Provisional elevation affects quantity.", sourceRefs: refs, methodVersion: DefaultMethodVersion,
-                    issueRefs: CollectIssueRefs(piece.StartElevation, piece.EndElevation)));
-                provisionalQuantities.Add(new SnapshotQuantityLine(CutLedger, piece.Id, SiUnit.Meter.ToString(), cutM, SnapshotQuantityStatus.Provisional,
-                    reason: "Provisional elevation affects quantity.", sourceRefs: refs, methodVersion: DefaultMethodVersion,
-                    issueRefs: CollectIssueRefs(piece.StartElevation, piece.EndElevation)));
-            }
-            else
-            {
-                unknownQuantities.Add(CreateUnknownPieceLine(RouteLedger, piece, sourceRefs, "Provisional/unknown route length."));
-                unknownQuantities.Add(CreateUnknownPieceLine(CutLedger, piece, sourceRefs, "Provisional/unknown cut length."));
-            }
-        }
-
-        foreach (var piece in unknownRoutePieces.OrderBy(p => p.Id, StringComparer.Ordinal))
-        {
-            var reason = GetUnknownReason(piece.StartElevation, piece.EndElevation) ?? "Unknown elevation affects quantity.";
-            unknownQuantities.Add(CreateUnknownPieceLine(RouteLedger, piece, sourceRefs, reason));
-            unknownQuantities.Add(CreateUnknownPieceLine(CutLedger, piece, sourceRefs, reason));
-        }
+        var provisionalQuantities = provisionalLines
+            .OrderBy(q => q.GroupKey, StringComparer.Ordinal)
+            .ThenBy(q => q.Ledger, StringComparer.Ordinal)
+            .ToList();
+        var unknownQuantities = unknownLines
+            .OrderBy(q => q.GroupKey, StringComparer.Ordinal)
+            .ThenBy(q => q.Ledger, StringComparer.Ordinal)
+            .ToList();
 
         // If no quantities at all, report explicit unknown totals rather than zero.
         if (knownQuantities.Count == 0 && provisionalQuantities.Count == 0 && unknownQuantities.Count == 0)
         {
             var reason = snapshot.Pieces.Count == 0 ? "No pieces in scope." : "All pieces excluded from scope.";
-            unknownQuantities.Add(new SnapshotQuantityLine(RouteLedger, DefaultGroup, SiUnit.Meter.ToString(), null, SnapshotQuantityStatus.Unknown,
-                reason: reason, sourceRefs: sourceRefs, methodVersion: DefaultMethodVersion, issueRefs: ["issue:snapshot:no-in-scope-quantities"]));
-            unknownQuantities.Add(new SnapshotQuantityLine(CutLedger, DefaultGroup, SiUnit.Meter.ToString(), null, SnapshotQuantityStatus.Unknown,
-                reason: reason, sourceRefs: sourceRefs, methodVersion: DefaultMethodVersion, issueRefs: ["issue:snapshot:no-in-scope-quantities"]));
+            unknownQuantities.Add(CreateUnknownTotalLine(RouteLedger, reason, snapshotSourceRefs, RouteLedgerCalculator.RouteMethodVersion));
+            unknownQuantities.Add(CreateUnknownTotalLine(CutLedger, reason, snapshotSourceRefs, RouteLedgerCalculator.CutMethodVersion));
             issues.Add("issue:snapshot:no-in-scope-quantities");
         }
 
         if (unknownQuantities.Count > 0)
-        {
             issues.Add("issue:snapshot:partial-unknown");
-        }
 
         var distinctIssues = issues.Distinct(StringComparer.Ordinal).ToArray();
 
@@ -179,13 +141,149 @@ public static class ProjectSnapshotFreezer
             projectRevision: snapshot.Revision,
             createdAtUtc: createdAtUtc,
             label: label,
-            sourceRefs: sourceRefs.Distinct(StringComparer.Ordinal).ToArray(),
+            sourceRefs: snapshotSourceRefs.Distinct(StringComparer.Ordinal).ToArray(),
             methodVersion: DefaultMethodVersion,
             knownQuantities: knownQuantities,
             provisionalQuantities: provisionalQuantities,
             unknownQuantities: unknownQuantities,
             exclusions: exclusionSet.OrderBy(x => x, StringComparer.Ordinal).ToArray(),
             issues: distinctIssues);
+    }
+
+    private static bool IsUnknownLedger(RoutePieceLedger ledger) =>
+        ledger.RouteLength is UnknownValue || ledger.CutLength is UnknownValue;
+
+    private static string? GetLedgerUnknownReason(RoutePieceLedger ledger)
+    {
+        if (ledger.RouteLength is UnknownValue r) return r.Reason;
+        if (ledger.CutLength is UnknownValue c) return c.Reason;
+        return null;
+    }
+
+    private static void AddProvisionalPieceLines(
+        List<SnapshotQuantityLine> provisionalQuantities,
+        RoutePiece piece,
+        RoutePieceLedger ledger,
+        IReadOnlyList<string> refs)
+    {
+        var issueRefs = CollectIssueRefs(piece.StartElevation, piece.EndElevation);
+
+        if (ledger.RouteLength is KnownValue routeKnown)
+        {
+            provisionalQuantities.Add(new SnapshotQuantityLine(
+                RouteLedger,
+                piece.Id,
+                SiUnit.Meter.ToString(),
+                routeKnown.Value,
+                SnapshotQuantityStatus.Provisional,
+                reason: "Provisional elevation affects quantity.",
+                sourceRefs: refs,
+                methodVersion: ledger.RouteMethodVersion,
+                issueRefs: issueRefs));
+        }
+        else
+        {
+            provisionalQuantities.Add(CreateUnknownOrProvisionalFallback(RouteLedger, piece, refs, ledger.RouteMethodVersion, issueRefs, isProvisional: true));
+        }
+
+        if (ledger.CutLength is KnownValue cutKnown)
+        {
+            provisionalQuantities.Add(new SnapshotQuantityLine(
+                CutLedger,
+                piece.Id,
+                SiUnit.Meter.ToString(),
+                cutKnown.Value,
+                SnapshotQuantityStatus.Provisional,
+                reason: "Provisional elevation affects quantity.",
+                sourceRefs: refs,
+                methodVersion: ledger.CutMethodVersion,
+                issueRefs: issueRefs));
+        }
+        else
+        {
+            provisionalQuantities.Add(CreateUnknownOrProvisionalFallback(CutLedger, piece, refs, ledger.CutMethodVersion, issueRefs, isProvisional: true));
+        }
+    }
+
+    private static SnapshotQuantityLine CreateUnknownOrProvisionalFallback(
+        string ledger,
+        RoutePiece piece,
+        IReadOnlyList<string> refs,
+        string methodVersion,
+        IReadOnlyList<string> issueRefs,
+        bool isProvisional)
+    {
+        // A provisional elevation that cannot be computed is treated as unknown, never zero.
+        var reason = isProvisional
+            ? "Provisional/unknown route or cut length."
+            : "Unknown route or cut length.";
+        var issues = issueRefs.Count > 0 ? issueRefs : [$"issue:quantity-unknown:{ledger}:{piece.Id}"];
+        return new SnapshotQuantityLine(
+            ledger,
+            piece.Id,
+            SiUnit.Meter.ToString(),
+            value: null,
+            status: SnapshotQuantityStatus.Unknown,
+            reason: reason,
+            sourceRefs: refs,
+            methodVersion: methodVersion,
+            issueRefs: issues);
+    }
+
+    private static void AddUnknownPieceLines(
+        List<SnapshotQuantityLine> unknownQuantities,
+        RoutePiece piece,
+        RoutePieceLedger ledger,
+        IReadOnlyList<string> refs,
+        string reason)
+    {
+        var issueRefs = CollectIssueRefs(piece.StartElevation, piece.EndElevation);
+        if (ledger.RouteLength is UnknownValue routeUnknown)
+            issueRefs = issueRefs.Concat(routeUnknown.IssueRefs).Distinct(StringComparer.Ordinal).ToArray();
+        if (ledger.CutLength is UnknownValue cutUnknown)
+            issueRefs = issueRefs.Concat(cutUnknown.IssueRefs).Distinct(StringComparer.Ordinal).ToArray();
+        if (issueRefs.Count == 0)
+            issueRefs = [$"issue:quantity-unknown:{piece.Id}"];
+
+        unknownQuantities.Add(new SnapshotQuantityLine(
+            RouteLedger,
+            piece.Id,
+            SiUnit.Meter.ToString(),
+            value: null,
+            status: SnapshotQuantityStatus.Unknown,
+            reason: reason,
+            sourceRefs: refs,
+            methodVersion: ledger.RouteMethodVersion,
+            issueRefs: issueRefs));
+
+        unknownQuantities.Add(new SnapshotQuantityLine(
+            CutLedger,
+            piece.Id,
+            SiUnit.Meter.ToString(),
+            value: null,
+            status: SnapshotQuantityStatus.Unknown,
+            reason: reason,
+            sourceRefs: refs,
+            methodVersion: ledger.CutMethodVersion,
+            issueRefs: issueRefs));
+    }
+
+    private static SnapshotQuantityLine CreateUnknownTotalLine(
+        string ledger,
+        string reason,
+        IReadOnlyList<string> sourceRefs,
+        string methodVersion)
+    {
+        return new SnapshotQuantityLine(
+            ledger,
+            DefaultGroup,
+            SiUnit.Meter.ToString(),
+            value: null,
+            status: SnapshotQuantityStatus.Unknown,
+            reason: reason,
+            sourceRefs: sourceRefs,
+            methodVersion: methodVersion,
+            issueRefs: ["issue:snapshot:no-in-scope-quantities"]);
     }
 
     private static HashSet<string> NormalizeExclusions(IReadOnlyList<string>? exclusions)
@@ -214,6 +312,14 @@ public static class ProjectSnapshotFreezer
         }
     }
 
+    private static void CollectLedgerIssues(RoutePieceLedger ledger, List<string> issues)
+    {
+        if (ledger.RouteLength is UnknownValue ru)
+            foreach (var i in ru.IssueRefs) issues.Add(i);
+        if (ledger.CutLength is UnknownValue cu)
+            foreach (var i in cu.IssueRefs) issues.Add(i);
+    }
+
     private static IReadOnlyList<string> CollectIssueRefs(params TaggedValue[] values)
     {
         var refs = new List<string>();
@@ -230,24 +336,6 @@ public static class ProjectSnapshotFreezer
         if (start is UnknownValue us) return us.Reason;
         if (end is UnknownValue ue) return ue.Reason;
         return null;
-    }
-
-    private static SnapshotQuantityLine CreateUnknownPieceLine(string ledger, RoutePiece piece, IReadOnlyList<string> snapshotSourceRefs, string reason)
-    {
-        var refs = MergeRefs(snapshotSourceRefs, piece.SourceRefs);
-        var issueRefs = CollectIssueRefs(piece.StartElevation, piece.EndElevation);
-        if (issueRefs.Count == 0)
-            issueRefs = [$"issue:quantity-unknown:{ledger}:{piece.Id}"];
-        return new SnapshotQuantityLine(
-            ledger,
-            piece.Id,
-            SiUnit.Meter.ToString(),
-            value: null,
-            status: SnapshotQuantityStatus.Unknown,
-            reason: reason,
-            sourceRefs: refs,
-            methodVersion: DefaultMethodVersion,
-            issueRefs: issueRefs);
     }
 
     private static IReadOnlyList<string> MergeRefs(IReadOnlyList<string> a, IReadOnlyList<string> b)

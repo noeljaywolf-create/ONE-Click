@@ -265,8 +265,8 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
     private static ICommandDispatcher CreateDefaultDispatcher(IProjectDomainStateStore? domainStateStore) =>
         new CommandDispatcher(
         [
-            new ImportDocumentCommandHandler(),
-            new SetCalibrationCommandHandler(),
+            new ImportDocumentCommandHandler(domainStateStore),
+            new SetCalibrationCommandHandler(domainStateStore),
             new UpsertRouteCommandHandler(domainStateStore),
             new PlaceComponentCommandHandler(),
             new ConnectPortsCommandHandler(),

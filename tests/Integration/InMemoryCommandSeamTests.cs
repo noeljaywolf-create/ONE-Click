@@ -110,8 +110,9 @@ public sealed class InMemoryCommandSeamTests
         var store = new InMemoryProjectCommandStore(sync);
         var tx = new InMemoryCommandTransactionFactory(sync);
         var outbox = new InMemoryCommandOutboxWriter();
-        var dispatcher = new CommandDispatcher([new ImportDocumentCommandHandler()]);
-        var service = new InMemoryProjectCommandService(null, store, tx, outbox, dispatcher);
+        var domainStore = new InMemoryProjectDomainStateStore();
+        var dispatcher = new CommandDispatcher([new ImportDocumentCommandHandler(domainStore)]);
+        var service = new InMemoryProjectCommandService(null, store, tx, outbox, dispatcher, domainStore);
 
         var projectId = ProjectId.New();
         service.CreateProject(projectId);
@@ -125,7 +126,8 @@ public sealed class InMemoryCommandSeamTests
             actor);
 
         Assert.Equal(1, receipt.NewRevision.Value);
-        Assert.Equal(["issue:placeholder:ImportDocument"], receipt.IssueIds);
+        Assert.Equal(["document:cmd-1", "region:document:cmd-1:default"], receipt.CreatedIds);
+        Assert.Empty(receipt.IssueIds);
         Assert.Single(outbox.Messages);
         Assert.Equal(CommandTypes.ImportDocument, outbox.Messages.First().CommandType);
         Assert.Equal(receipt, outbox.Messages.First().Receipt);

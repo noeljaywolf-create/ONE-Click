@@ -27,7 +27,7 @@ public sealed class LedgerPieceRowViewModel
         CollectIssues(issues, ledger?.RouteLength);
         CollectIssues(issues, ledger?.CutLength);
         Issues = issues.Distinct(StringComparer.Ordinal).ToArray();
-        IssueSummary = Issues.Count == 0 ? "No issues" : string.Join(", ", Issues);
+        IssueSummary = Issues.Count == 0 ? "No issues" : $"Issue IDs: {string.Join(", ", Issues)}";
 
         StatusSummary = BuildStatusSummary();
     }

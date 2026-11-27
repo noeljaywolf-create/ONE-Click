@@ -1,4 +1,5 @@
 ﻿using OneClick.Application.Commands;
+using OneClick.Application.Contracts;
 using OneClick.Application.Persistence;
 using OneClick.Core.Domain;
 using OneClick.Core.TaggedValues;
@@ -29,14 +30,203 @@ public abstract class PlaceholderCommandHandler<TCommand> : ProjectCommandHandle
     }
 }
 
-public sealed class ImportDocumentCommandHandler : PlaceholderCommandHandler<ImportDocumentCommand>
+public sealed class ImportDocumentCommandHandler : ProjectCommandHandler<ImportDocumentCommand>
 {
+    private readonly IProjectDomainStateStore? _domainStateStore;
+
+    public ImportDocumentCommandHandler(IProjectDomainStateStore? domainStateStore = null)
+    {
+        _domainStateStore = domainStateStore;
+    }
+
     public override string CommandType => CommandTypes.ImportDocument;
+
+    public override async Task<CommandHandlerResult> HandleAsync(
+        ImportDocumentCommand command,
+        CommandHandlerContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(context);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (_domainStateStore is null)
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                ["issue:domain-state-store:missing"]);
+        }
+
+        if (string.IsNullOrWhiteSpace(command.UploadHandle))
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                ["issue:import-document:upload-handle-required"]);
+        }
+
+        var state = await _domainStateStore.GetAsync(context.ProjectId, cancellationToken).ConfigureAwait(false);
+        if (state is null)
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                [$"issue:project-not-found:{context.ProjectId.Value}"]);
+        }
+
+        var commandRef = $"command:{context.CommandId.Value}";
+        var documentId = $"document:{context.CommandId.Value}";
+        var regionId = $"region:{documentId}:default";
+        var sourceRefs = new[] { commandRef, $"upload:{command.UploadHandle.Trim()}" };
+        const string methodVersion = "import-document.v1";
+
+        var region = new DocumentRegionRecord(regionId, documentId, sourceRefs, methodVersion);
+        var document = new ImportedDocumentRecord(
+            documentId,
+            command.UploadHandle.Trim(),
+            command.DocumentLabel,
+            command.SourceFileName,
+            [regionId],
+            sourceRefs,
+            methodVersion);
+
+        state.UpsertImportedDocument(document);
+        state.UpsertRegion(region);
+
+        SyncRevision(state, context.ExpectedRevision);
+        await _domainStateStore.SaveAsync(state, cancellationToken).ConfigureAwait(false);
+
+        return new CommandHandlerResult(
+            [documentId, regionId],
+            Array.Empty<string>(),
+            Array.Empty<string>());
+    }
+
+    private static void SyncRevision(ProjectDomainState state, ProjectRevision expectedRevision)
+    {
+        var nextRevision = expectedRevision.Value + 1;
+        if (nextRevision > state.Revision)
+            state.SetRevision(nextRevision);
+    }
 }
 
-public sealed class SetCalibrationCommandHandler : PlaceholderCommandHandler<SetCalibrationCommand>
+public sealed class SetCalibrationCommandHandler : ProjectCommandHandler<SetCalibrationCommand>
 {
+    private readonly IProjectDomainStateStore? _domainStateStore;
+
+    public SetCalibrationCommandHandler(IProjectDomainStateStore? domainStateStore = null)
+    {
+        _domainStateStore = domainStateStore;
+    }
+
     public override string CommandType => CommandTypes.SetCalibration;
+
+    public override async Task<CommandHandlerResult> HandleAsync(
+        SetCalibrationCommand command,
+        CommandHandlerContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(context);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (_domainStateStore is null)
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                ["issue:domain-state-store:missing"]);
+        }
+
+        if (string.IsNullOrWhiteSpace(command.RegionId))
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                ["issue:set-calibration:region-id-required"]);
+        }
+
+        if (command.ControlPoints is null || command.ControlPoints.Count < 2)
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                ["issue:set-calibration:control-points-insufficient"]);
+        }
+
+        for (var i = 0; i < command.ControlPoints.Count; i++)
+        {
+            var p = command.ControlPoints[i];
+            if (p is null
+                || !double.IsFinite(p.SourceX) || !double.IsFinite(p.SourceY)
+                || !double.IsFinite(p.ModelX) || !double.IsFinite(p.ModelY)
+                || (p.ModelZ.HasValue && !double.IsFinite(p.ModelZ.Value)))
+            {
+                return new CommandHandlerResult(
+                    Array.Empty<string>(),
+                    Array.Empty<string>(),
+                    [$"issue:set-calibration:control-point-invalid:{i}"]);
+            }
+        }
+
+        var state = await _domainStateStore.GetAsync(context.ProjectId, cancellationToken).ConfigureAwait(false);
+        if (state is null)
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                [$"issue:project-not-found:{context.ProjectId.Value}"]);
+        }
+
+        var regionId = command.RegionId.Trim();
+        if (!state.TryGetRegion(regionId, out _))
+        {
+            return new CommandHandlerResult(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                [$"issue:set-calibration:region-not-found:{regionId}"]);
+        }
+
+        var hadExisting = state.TryGetCalibrationForRegion(regionId, out var existing);
+        var calibrationId = $"calibration:{regionId}";
+        var sourceRefs = new[]
+        {
+            $"command:{context.CommandId.Value}",
+            $"region:{regionId}"
+        };
+        const string methodVersion = "set-calibration.v1";
+
+        var controlPoints = command.ControlPoints
+            .Select(p => new CalibrationControlPointRecord(p.SourceX, p.SourceY, p.ModelX, p.ModelY, p.ModelZ))
+            .ToArray();
+
+        var calibration = new CalibrationRecord(
+            calibrationId,
+            regionId,
+            controlPoints,
+            command.CalibrationNotes,
+            sourceRefs,
+            methodVersion);
+
+        state.UpsertCalibration(calibration);
+        SyncRevision(state, context.ExpectedRevision);
+        await _domainStateStore.SaveAsync(state, cancellationToken).ConfigureAwait(false);
+
+        var createdIds = hadExisting ? Array.Empty<string>() : new[] { calibrationId };
+        var invalidatedIds = hadExisting && existing is not null
+            ? new[] { existing.CalibrationId }
+            : Array.Empty<string>();
+
+        return new CommandHandlerResult(createdIds, invalidatedIds, Array.Empty<string>());
+    }
+
+    private static void SyncRevision(ProjectDomainState state, ProjectRevision expectedRevision)
+    {
+        var nextRevision = expectedRevision.Value + 1;
+        if (nextRevision > state.Revision)
+            state.SetRevision(nextRevision);
+    }
 }
 
 public sealed class UpsertRouteCommandHandler : ProjectCommandHandler<UpsertRouteCommand>

@@ -22,6 +22,7 @@ public partial class MainWindow : Window
         ViewModel = new MainViewModel();
         DataContext = ViewModel;
         Loaded += OnLoaded;
+        ViewModel.AfterInitializeAsync = () => RefreshViewsAsync(ViewModel.StatusMessage);
 
         GeometryViewControl.DataContext = _geometryViewModel;
         GeometryViewControl.Pieces = _geometryViewModel.Pieces;
@@ -77,6 +78,14 @@ public partial class MainWindow : Window
 
         LedgerPanelControl.ViewModel.OnElevationEditRequested = HandleElevationEditAsync;
         SnapshotPanelControl.ViewModel.FreezeAction = FreezeSnapshotAsync;
+        SnapshotPanelControl.ViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SnapshotPanelViewModel.StatusMessage))
+            {
+                ViewModel.StatusMessage = SnapshotPanelControl.ViewModel.StatusMessage;
+                ViewModel.LastRefreshedDisplay = DateTimeOffset.Now.ToString("HH:mm:ss");
+            }
+        };
     }
 
     public MainViewModel ViewModel { get; }
@@ -87,8 +96,6 @@ public partial class MainWindow : Window
         try
         {
             await ViewModel.InitializeAsync().ConfigureAwait(true);
-            if (ViewModel.IsLoaded)
-                await RefreshViewsAsync(ViewModel.StatusMessage).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -177,12 +184,13 @@ public partial class MainWindow : Window
         return $"Project '{state.ProjectId.Value}' at revision {state.Revision}: {state.Pieces.Count} piece(s), {snapshotText}.";
     }
 
-    private async Task HandleElevationEditAsync(LedgerElevationEditRequest request)
+    private async Task<string?> HandleElevationEditAsync(LedgerElevationEditRequest request)
     {
         if (ViewModel.CommandService is null || ViewModel.DomainStateStore is null || ViewModel.CurrentProjectId is null || ViewModel.ActorContext is null)
         {
-            ViewModel.StatusMessage = "Cannot edit elevation: shell is not initialized.";
-            return;
+            var notReady = "Cannot edit elevation: shell is not initialized.";
+            ViewModel.StatusMessage = notReady;
+            return notReady;
         }
 
         var projectId = ViewModel.CurrentProjectId.Value;
@@ -190,8 +198,9 @@ public partial class MainWindow : Window
         var piece = state?.Pieces.FirstOrDefault(p => p.Id == request.PieceId);
         if (state is null || piece is null)
         {
-            ViewModel.StatusMessage = $"Cannot edit elevation: piece '{request.PieceId}' not found in project '{projectId.Value}'.";
-            return;
+            var missing = $"Cannot edit elevation: piece '{request.PieceId}' not found in project '{projectId.Value}'.";
+            ViewModel.StatusMessage = missing;
+            return missing;
         }
 
         static double? ToNullableZ(TaggedValue tv) =>
@@ -237,22 +246,17 @@ public partial class MainWindow : Window
                 command,
                 ViewModel.ActorContext).ConfigureAwait(true);
 
-            var factualStatus = $"Elevation edit accepted for '{request.PieceId}' ({request.End}). Revision {receipt.NewRevision.Value}; issues: {receipt.IssueIds.Count}.";
+            var issueText = FormatIssueIds(receipt.IssueIds);
+            var factualStatus = $"Elevation edit accepted for '{request.PieceId}' ({request.End}). Revision {receipt.NewRevision.Value}; command issues: {issueText}.";
             await RefreshViewsAsync(factualStatus).ConfigureAwait(true);
-
-            // LedgerPanelViewModel.DispatchEditAsync overwrites status with "Completed" after this callback returns.
-            // Reassert the factual shell status on the UI dispatcher.
-            _ = Dispatcher.InvokeAsync(() =>
-            {
-                ViewModel.StatusMessage = factualStatus;
-                LedgerPanelControl.ViewModel.StatusMessage = factualStatus;
-            });
+            ViewModel.StatusMessage = factualStatus;
+            return factualStatus;
         }
         catch (Exception ex)
         {
             var errorStatus = $"Elevation edit failed for '{request.PieceId}' ({request.End}): {ex.Message}";
             ViewModel.StatusMessage = errorStatus;
-            _ = Dispatcher.InvokeAsync(() => LedgerPanelControl.ViewModel.StatusMessage = errorStatus);
+            throw;
         }
     }
 
@@ -265,12 +269,29 @@ public partial class MainWindow : Window
         var freezeService = new SnapshotFreezeService(ViewModel.DomainStateStore);
         var manifest = await freezeService.FreezeAsync(projectId, snapshotId, DateTimeOffset.UtcNow, label, cancellationToken: cancellationToken).ConfigureAwait(true);
 
-        var factualStatus = $"Snapshot '{manifest.SnapshotId}' frozen at revision {manifest.ProjectRevision}.";
+        var issueText = FormatIssueIds(manifest.Issues);
+        var exclusionText = manifest.Exclusions.Count == 0 ? "none" : $"{manifest.Exclusions.Count} ({string.Join(", ", manifest.Exclusions)})";
+        var factualStatus = $"Snapshot '{manifest.SnapshotId}' frozen at revision {manifest.ProjectRevision}. Snapshot issues: {issueText}. Exclusions: {exclusionText}.";
         await RefreshViewsAsync(factualStatus, updateSnapshotPanel: false).ConfigureAwait(true);
 
         // Keep the frozen manifest visible; RefreshViewsAsync skipped snapshot panel update.
         SnapshotPanelControl.ViewModel.SetManifest(manifest, factualStatus);
         ViewModel.StatusMessage = factualStatus;
         return manifest;
+    }
+
+    private static string FormatIssueIds(IReadOnlyList<string> issueIds)
+    {
+        if (issueIds is null || issueIds.Count == 0)
+            return "none";
+
+        var distinct = issueIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        return distinct.Length == 0
+            ? "none"
+            : $"{distinct.Length} [{string.Join(", ", distinct)}]";
     }
 }

@@ -116,11 +116,63 @@
                         <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Source refs" />
                         <TextBlock Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldValue}" Text="{Binding SourceRefsDisplay}" />
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Issues" />
-                        <TextBlock Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldValue}" Text="{Binding IssuesDisplay}" />
+                        <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="{Binding IssuesSummaryLabel}" />
+                        <Border Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Padding="4,2" Margin="0,0,0,4" CornerRadius="2">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasManifestIssues}" Value="True">
+                                            <Setter Property="Background" Value="#FFFFF3E0" />
+                                            <Setter Property="BorderBrush" Value="#FFE0A800" />
+                                            <Setter Property="BorderThickness" Value="1" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding IssuesDisplay}" TextWrapping="Wrap">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#1A1A1A" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasManifestIssues}" Value="True">
+                                                <Setter Property="Foreground" Value="#FF7A3E00" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Border>
 
-                        <TextBlock Grid.Row="5" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Exclusions" />
-                        <TextBlock Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldValue}" Text="{Binding ExclusionsDisplay}" />
+                        <TextBlock Grid.Row="5" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="{Binding ExclusionsSummaryLabel}" />
+                        <Border Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" Padding="4,2" Margin="0,0,0,4" CornerRadius="2">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasManifestExclusions}" Value="True">
+                                            <Setter Property="Background" Value="#FFF0F4FF" />
+                                            <Setter Property="BorderBrush" Value="#FF8AA0D0" />
+                                            <Setter Property="BorderThickness" Value="1" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding ExclusionsDisplay}" TextWrapping="Wrap">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#1A1A1A" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasManifestExclusions}" Value="True">
+                                                <Setter Property="Foreground" Value="#FF1F3A7A" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Border>
                     </Grid>
                 </StackPanel>
             </Border>

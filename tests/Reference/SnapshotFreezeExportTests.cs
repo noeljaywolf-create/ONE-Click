@@ -153,6 +153,107 @@ public sealed class SnapshotFreezeExportTests
         Assert.Equal(21.0d, reloaded.SnapshotManifests[0].KnownQuantities.Single(q => q.Ledger == ProjectSnapshotFreezer.RouteLedger).Value);
     }
 
+    [Fact]
+    public void Freeze_UsesRouteLedgerCalculator_AsSingleSourceOfTruth_ForMethodAndValues()
+    {
+        var state = LoadBaselineState();
+        var manifest = ProjectSnapshotFreezer.Freeze(
+            state,
+            snapshotId: "snap-align-1",
+            createdAtUtc: new DateTimeOffset(2026, 11, 26, 12, 20, 0, TimeSpan.Zero));
+
+        var knownRoute = Assert.Single(manifest.KnownQuantities, q => q.Ledger == ProjectSnapshotFreezer.RouteLedger);
+        var knownCut = Assert.Single(manifest.KnownQuantities, q => q.Ledger == ProjectSnapshotFreezer.CutLedger);
+
+        // Per-quantity method versions must align with RouteLedgerCalculator, not a freezer-private string.
+        Assert.Equal(RouteLedgerCalculator.RouteMethodVersion, knownRoute.MethodVersion);
+        Assert.Equal(RouteLedgerCalculator.CutMethodVersion, knownCut.MethodVersion);
+        Assert.NotEqual(knownRoute.MethodVersion, knownCut.MethodVersion);
+
+        // Values must match the calculator's per-piece computation for the same in-scope pieces.
+        var calculator = RouteLedgerCalculator.Compute(state.Pieces.OrderBy(p => p.Id, StringComparer.Ordinal));
+        var expectedRoute = calculator.Pieces.Sum(p => ((KnownValue)p.RouteLength).Value);
+        var expectedCut = calculator.Pieces.Sum(p => ((KnownValue)p.CutLength).Value);
+        Assert.Equal(expectedRoute, knownRoute.Value!.Value, precision: 10);
+        Assert.Equal(expectedCut, knownCut.Value!.Value, precision: 10);
+
+        // Source refs carry snapshot provenance and piece provenance.
+        Assert.Contains($"project:{state.ProjectId.Value}", knownRoute.SourceRefs);
+        Assert.Contains($"revision:{state.Revision}", knownRoute.SourceRefs);
+        var firstPieceId = state.Pieces.OrderBy(p => p.Id, StringComparer.Ordinal).First().Id;
+        Assert.Contains(knownRoute.SourceRefs, r => r.Contains(firstPieceId, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Freeze_UnknownElevation_AlignsWithRouteLedgerCalculator_UnknownNeverZero()
+    {
+        var state = LoadBaselineState();
+        var piece = state.GetRequiredPiece("B3D");
+        var issue = "issue:elevation-unknown:B3D";
+        var unknown = new UnknownValue(SiUnit.Meter, ["test:unknown-elevation"], "test.v1", "Elevation is not known for this slice.", [issue]);
+        state.UpsertPiece(piece.WithElevations(piece.StartElevation, unknown));
+
+        // Calculator is the single source of truth for the piece-level result.
+        var pieceLedger = RouteLedgerCalculator.ComputePiece(state.GetRequiredPiece("B3D"));
+        Assert.IsType<UnknownValue>(pieceLedger.RouteLength);
+        Assert.IsType<UnknownValue>(pieceLedger.CutLength);
+
+        var manifest = ProjectSnapshotFreezer.Freeze(
+            state,
+            snapshotId: "snap-align-unknown",
+            createdAtUtc: new DateTimeOffset(2026, 11, 26, 12, 25, 0, TimeSpan.Zero));
+
+        var unknownRoute = Assert.Single(manifest.UnknownQuantities, q => q.Ledger == ProjectSnapshotFreezer.RouteLedger && q.GroupKey == "B3D");
+        var unknownCut = Assert.Single(manifest.UnknownQuantities, q => q.Ledger == ProjectSnapshotFreezer.CutLedger && q.GroupKey == "B3D");
+
+        Assert.Null(unknownRoute.Value);
+        Assert.Null(unknownCut.Value);
+        Assert.Equal(SnapshotQuantityStatus.Unknown, unknownRoute.Status);
+        Assert.Equal(SnapshotQuantityStatus.Unknown, unknownCut.Status);
+        Assert.Equal(RouteLedgerCalculator.RouteMethodVersion, unknownRoute.MethodVersion);
+        Assert.Equal(RouteLedgerCalculator.CutMethodVersion, unknownCut.MethodVersion);
+        Assert.Contains(issue, unknownRoute.IssueRefs);
+        Assert.Contains(issue, unknownCut.IssueRefs);
+        Assert.Contains(issue, manifest.Issues);
+        Assert.False(string.IsNullOrWhiteSpace(unknownRoute.Reason));
+    }
+
+    [Fact]
+    public void Freeze_ProvisionalElevation_EmitsProvisionalQuantityWithCalculatorValues()
+    {
+        var state = LoadBaselineState();
+        var piece = state.GetRequiredPiece("B3D");
+        var provisional = new ProvisionalValue(
+            99.0d,
+            SiUnit.Meter,
+            ["test:provisional-elevation"],
+            "test.v1",
+            ["assumption:elevation-provisional:B3D"],
+            ["issue:elevation-provisional:B3D"]);
+        state.UpsertPiece(piece.WithElevations(piece.StartElevation, provisional));
+
+        var pieceLedger = RouteLedgerCalculator.ComputePiece(state.GetRequiredPiece("B3D"));
+        var routeKnown = Assert.IsType<KnownValue>(pieceLedger.RouteLength);
+        var cutKnown = Assert.IsType<KnownValue>(pieceLedger.CutLength);
+
+        var manifest = ProjectSnapshotFreezer.Freeze(
+            state,
+            snapshotId: "snap-align-provisional",
+            createdAtUtc: new DateTimeOffset(2026, 11, 26, 12, 30, 0, TimeSpan.Zero));
+
+        var provRoute = Assert.Single(manifest.ProvisionalQuantities, q => q.Ledger == ProjectSnapshotFreezer.RouteLedger && q.GroupKey == "B3D");
+        var provCut = Assert.Single(manifest.ProvisionalQuantities, q => q.Ledger == ProjectSnapshotFreezer.CutLedger && q.GroupKey == "B3D");
+
+        Assert.Equal(SnapshotQuantityStatus.Provisional, provRoute.Status);
+        Assert.Equal(SnapshotQuantityStatus.Provisional, provCut.Status);
+        Assert.Equal(routeKnown.Value, provRoute.Value!.Value, precision: 10);
+        Assert.Equal(cutKnown.Value, provCut.Value!.Value, precision: 10);
+        Assert.Equal(RouteLedgerCalculator.RouteMethodVersion, provRoute.MethodVersion);
+        Assert.Equal(RouteLedgerCalculator.CutMethodVersion, provCut.MethodVersion);
+        Assert.Contains("issue:elevation-provisional:B3D", provRoute.IssueRefs);
+        Assert.DoesNotContain(manifest.UnknownQuantities, q => q.GroupKey == "B3D");
+    }
+
     private static ProjectDomainState LoadBaselineState()
     {
         var path = ResolveFixturePath();

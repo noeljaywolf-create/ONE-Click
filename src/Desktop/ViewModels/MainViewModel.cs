@@ -17,6 +17,7 @@ public sealed class MainViewModel : ViewModelBase
     private int _pieceCount;
     private int _snapshotManifestCount;
     private string _knownLimitations = string.Empty;
+    private string _lastRefreshedDisplay = "never";
 
     public MainViewModel()
         : this(new DesktopProjectBootstrapper())
@@ -84,6 +85,7 @@ public sealed class MainViewModel : ViewModelBase
         ProjectRevision = state.Revision;
         PieceCount = state.Pieces.Count;
         SnapshotManifestCount = state.SnapshotManifests.Count;
+        LastRefreshedDisplay = DateTimeOffset.Now.ToString("HH:mm:ss");
 
         if (!string.IsNullOrWhiteSpace(statusMessage))
             StatusMessage = statusMessage;
@@ -95,11 +97,20 @@ public sealed class MainViewModel : ViewModelBase
         private set => SetProperty(ref _knownLimitations, value);
     }
 
+    public string LastRefreshedDisplay
+    {
+        get => _lastRefreshedDisplay;
+        internal set => SetProperty(ref _lastRefreshedDisplay, value);
+    }
+
     public IProjectCommandService? CommandService { get; private set; }
     public IProjectQueryService? QueryService { get; private set; }
     public IProjectDomainStateStore? DomainStateStore { get; private set; }
     public ActorContext? ActorContext { get; private set; }
     public ProjectId? CurrentProjectId { get; private set; }
+
+    /// <summary>Optional shell callback invoked after a successful baseline load/reload.</summary>
+    public Func<Task>? AfterInitializeAsync { get; set; }
 
     public async Task InitializeAsync()
     {
@@ -125,6 +136,8 @@ public sealed class MainViewModel : ViewModelBase
             KnownLimitations = "in-memory-skeleton; synthetic baseline only";
             IsLoaded = true;
             StatusMessage = result.StatusMessage;
+            if (AfterInitializeAsync is not null)
+                await AfterInitializeAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {

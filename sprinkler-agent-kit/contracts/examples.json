@@ -130,6 +130,29 @@
         "issueIds": [],
         "currentRevision": 8
       }
+    },
+    {
+      "schema": "ProjectView",
+      "name": "project-with-scope-counts",
+      "value": {
+        "projectId": "proj:demo",
+        "revision": 7,
+        "name": "Demo project",
+        "capabilities": [
+          "ImportDocument",
+          "UpsertRoute"
+        ],
+        "scopeDescription": "First-slice demo scope",
+        "worldFrame": "right_handed_z_up_metres",
+        "scope": {
+          "hasAcceptedModel": false,
+          "knownLimitations": [
+            "No catalogue mapping loaded."
+          ],
+          "pieceCount": 2,
+          "snapshotCount": 1
+        }
+      }
     }
   ],
   "invalid": [

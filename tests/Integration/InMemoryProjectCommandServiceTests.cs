@@ -14,7 +14,8 @@ public sealed class InMemoryProjectCommandServiceTests
     [Fact]
     public async Task ExecuteCommand_Succeeds_And_Increments_Revision()
     {
-        var service = new InMemoryProjectCommandService();
+        var domainStore = new InMemoryProjectDomainStateStore();
+        var service = new InMemoryProjectCommandService(validator: null, domainStateStore: domainStore);
         var projectId = ProjectId.New();
         service.CreateProject(projectId);
 
@@ -29,9 +30,9 @@ public sealed class InMemoryProjectCommandServiceTests
             actor);
 
         Assert.Equal(1, receipt.NewRevision.Value);
-        Assert.Empty(receipt.CreatedIds);
+        Assert.Equal(["document:cmd-1", "region:document:cmd-1:default"], receipt.CreatedIds);
         Assert.Empty(receipt.InvalidatedIds);
-        Assert.Equal(["issue:placeholder:ImportDocument"], receipt.IssueIds);
+        Assert.Empty(receipt.IssueIds);
 
         var view = await service.QueryProjectAsync(projectId, actor);
         Assert.Equal(1, view.Revision.Value);
@@ -282,6 +283,169 @@ public sealed class InMemoryProjectCommandServiceTests
         Assert.Contains("issue:elevation-unknown:M1:start", receipt.IssueIds);
         Assert.Contains("issue:elevation-unknown:M1:end", receipt.IssueIds);
         Assert.Equal(2, receipt.IssueIds.Count);
+    }
+
+    [Fact]
+    public async Task ImportDocument_Creates_Document_And_Region_Metadata()
+    {
+        var domainStore = new InMemoryProjectDomainStateStore();
+        var service = new InMemoryProjectCommandService(validator: null, domainStateStore: domainStore);
+        var projectId = ProjectId.New();
+        service.CreateProject(projectId);
+        var actor = new ActorContext("actor-1", "session-1");
+
+        var receipt = await service.ExecuteCommandAsync(
+            projectId,
+            ProjectRevision.Initial,
+            new CommandId("cmd-import-1"),
+            new ImportDocumentCommand("upload-1", "Level 1 Plan", "level1.pdf"),
+            actor);
+
+        Assert.Equal(1, receipt.NewRevision.Value);
+        Assert.Equal(["document:cmd-import-1", "region:document:cmd-import-1:default"], receipt.CreatedIds);
+        Assert.Empty(receipt.InvalidatedIds);
+        Assert.Empty(receipt.IssueIds);
+
+        var state = await domainStore.GetAsync(projectId);
+        Assert.NotNull(state);
+        Assert.True(state!.TryGetImportedDocument("document:cmd-import-1", out var document));
+        Assert.NotNull(document);
+        Assert.Equal("upload-1", document!.UploadHandle);
+        Assert.Equal("Level 1 Plan", document.DocumentLabel);
+        Assert.Equal("level1.pdf", document.SourceFileName);
+        Assert.Equal(["region:document:cmd-import-1:default"], document.RegionIds);
+        Assert.Equal("import-document.v1", document.MethodVersion);
+        Assert.Contains("command:cmd-import-1", document.SourceRefs);
+
+        Assert.True(state.TryGetRegion("region:document:cmd-import-1:default", out var region));
+        Assert.NotNull(region);
+        Assert.Equal("document:cmd-import-1", region!.DocumentId);
+    }
+
+    [Fact]
+    public async Task SetCalibration_MissingRegion_Returns_Clear_Issue_And_DoesNotMutateCalibration()
+    {
+        var domainStore = new InMemoryProjectDomainStateStore();
+        var service = new InMemoryProjectCommandService(validator: null, domainStateStore: domainStore);
+        var projectId = ProjectId.New();
+        service.CreateProject(projectId);
+        var actor = new ActorContext("actor-1", "session-1");
+
+        var receipt = await service.ExecuteCommandAsync(
+            projectId,
+            ProjectRevision.Initial,
+            new CommandId("cmd-cal-1"),
+            new SetCalibrationCommand(
+                "region:missing",
+                [new CalibrationControlPoint(0, 0, 0, 0, null), new CalibrationControlPoint(1, 0, 1, 0, null)],
+                "note"),
+            actor);
+
+        Assert.Equal(1, receipt.NewRevision.Value);
+        Assert.Empty(receipt.CreatedIds);
+        Assert.Empty(receipt.InvalidatedIds);
+        Assert.Equal(["issue:set-calibration:region-not-found:region:missing"], receipt.IssueIds);
+
+        var state = await domainStore.GetAsync(projectId);
+        Assert.NotNull(state);
+        Assert.Empty(state!.Calibrations);
+    }
+
+    [Fact]
+    public async Task SetCalibration_Stores_Metadata_And_Updates_Existing_Calibration()
+    {
+        var domainStore = new InMemoryProjectDomainStateStore();
+        var service = new InMemoryProjectCommandService(validator: null, domainStateStore: domainStore);
+        var projectId = ProjectId.New();
+        service.CreateProject(projectId);
+        var actor = new ActorContext("actor-1", "session-1");
+
+        await service.ExecuteCommandAsync(
+            projectId,
+            ProjectRevision.Initial,
+            new CommandId("cmd-import-1"),
+            new ImportDocumentCommand("upload-1", "Plan", "a.pdf"),
+            actor);
+
+        var regionId = "region:document:cmd-import-1:default";
+        var first = await service.ExecuteCommandAsync(
+            projectId,
+            new ProjectRevision(1),
+            new CommandId("cmd-cal-1"),
+            new SetCalibrationCommand(
+                regionId,
+                [new CalibrationControlPoint(0, 0, 0, 0, null), new CalibrationControlPoint(10, 0, 10, 0, 0)],
+                "initial"),
+            actor);
+
+        Assert.Equal(2, first.NewRevision.Value);
+        Assert.Equal(["calibration:" + regionId], first.CreatedIds);
+        Assert.Empty(first.InvalidatedIds);
+        Assert.Empty(first.IssueIds);
+
+        var second = await service.ExecuteCommandAsync(
+            projectId,
+            new ProjectRevision(2),
+            new CommandId("cmd-cal-2"),
+            new SetCalibrationCommand(
+                regionId,
+                [new CalibrationControlPoint(0, 0, 0, 0, null), new CalibrationControlPoint(20, 0, 20, 0, null)],
+                "updated"),
+            actor);
+
+        Assert.Equal(3, second.NewRevision.Value);
+        Assert.Empty(second.CreatedIds);
+        Assert.Equal(["calibration:" + regionId], second.InvalidatedIds);
+        Assert.Empty(second.IssueIds);
+
+        var state = await domainStore.GetAsync(projectId);
+        Assert.NotNull(state);
+        Assert.True(state!.TryGetCalibrationForRegion(regionId, out var calibration));
+        Assert.NotNull(calibration);
+        Assert.Equal("calibration:" + regionId, calibration!.CalibrationId);
+        Assert.Equal(regionId, calibration.RegionId);
+        Assert.Equal("updated", calibration.Notes);
+        Assert.Equal(2, calibration.ControlPoints.Count);
+        Assert.Equal(20d, calibration.ControlPoints[1].SourceX);
+        Assert.Equal("set-calibration.v1", calibration.MethodVersion);
+        Assert.Contains("command:cmd-cal-2", calibration.SourceRefs);
+        Assert.Contains("region:" + regionId, calibration.SourceRefs);
+    }
+
+    [Fact]
+    public async Task SetCalibration_InsufficientControlPoints_Returns_Clear_Issue()
+    {
+        var domainStore = new InMemoryProjectDomainStateStore();
+        var service = new InMemoryProjectCommandService(validator: null, domainStateStore: domainStore);
+        var projectId = ProjectId.New();
+        service.CreateProject(projectId);
+        var actor = new ActorContext("actor-1", "session-1");
+
+        await service.ExecuteCommandAsync(
+            projectId,
+            ProjectRevision.Initial,
+            new CommandId("cmd-import-1"),
+            new ImportDocumentCommand("upload-1", null, null),
+            actor);
+
+        var receipt = await service.ExecuteCommandAsync(
+            projectId,
+            new ProjectRevision(1),
+            new CommandId("cmd-cal-1"),
+            new SetCalibrationCommand(
+                "region:document:cmd-import-1:default",
+                [new CalibrationControlPoint(0, 0, 0, 0, null)],
+                null),
+            actor);
+
+        Assert.Equal(2, receipt.NewRevision.Value);
+        Assert.Empty(receipt.CreatedIds);
+        Assert.Empty(receipt.InvalidatedIds);
+        Assert.Equal(["issue:set-calibration:control-points-insufficient"], receipt.IssueIds);
+
+        var state = await domainStore.GetAsync(projectId);
+        Assert.NotNull(state);
+        Assert.Empty(state!.Calibrations);
     }
 
     private static RoutePiece CreatePiece(string id) =>

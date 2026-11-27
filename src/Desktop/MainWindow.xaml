@@ -48,9 +48,13 @@
                             <Run Text="Snapshots: " FontWeight="SemiBold" />
                             <Run Text="{Binding SnapshotManifestCount, Mode=OneWay}" />
                         </TextBlock>
-                        <TextBlock>
+                        <TextBlock Margin="0,0,16,0">
                             <Run Text="Loaded: " FontWeight="SemiBold" />
                             <Run Text="{Binding IsLoaded, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock>
+                            <Run Text="Last refresh: " FontWeight="SemiBold" />
+                            <Run Text="{Binding LastRefreshedDisplay, Mode=OneWay}" />
                         </TextBlock>
                     </WrapPanel>
                     <TextBlock Margin="0,6,0,0" TextWrapping="Wrap">
@@ -66,8 +70,18 @@
                 <Button Grid.Column="1"
                         Padding="12,6"
                         VerticalAlignment="Top"
-                        Command="{Binding InitializeCommand}"
-                        Content="Load Baseline" />
+                        Command="{Binding InitializeCommand}">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Content" Value="Load Baseline" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLoaded}" Value="True">
+                                    <Setter Property="Content" Value="Reload Baseline" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
             </Grid>
         </Border>
 

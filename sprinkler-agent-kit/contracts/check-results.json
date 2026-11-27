@@ -2,7 +2,7 @@
   "status": "PASS for listed limited checks",
   "counts": {
     "resolved schema/parameter references": 150,
-    "valid structural examples": 6,
+    "valid structural examples": 7,
     "invalid structural examples": 5,
     "operation shape/replay/precondition checks": 10,
     "existing Markdown link targets": 53,

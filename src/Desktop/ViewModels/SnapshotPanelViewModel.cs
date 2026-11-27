@@ -21,6 +21,8 @@ public sealed class SnapshotPanelViewModel : ViewModelBase
     private bool _isBusy;
     private bool _isFrozen;
     private bool _hasStatusError;
+    private bool _hasManifestIssues;
+    private bool _hasManifestExclusions;
 
     public SnapshotPanelViewModel()
     {
@@ -78,6 +80,8 @@ public sealed class SnapshotPanelViewModel : ViewModelBase
             OnPropertyChanged(nameof(UnknownTotalsDisplay));
             OnPropertyChanged(nameof(IssuesDisplay));
             OnPropertyChanged(nameof(ExclusionsDisplay));
+            OnPropertyChanged(nameof(IssuesSummaryLabel));
+            OnPropertyChanged(nameof(ExclusionsSummaryLabel));
             RefreshCollections();
             CommandManager.InvalidateRequerySuggested();
         }
@@ -162,6 +166,20 @@ public sealed class SnapshotPanelViewModel : ViewModelBase
     public string SourceRefsDisplay => Manifest is null || Manifest.SourceRefs.Count == 0 ? "(none)" : string.Join(", ", Manifest.SourceRefs);
     public string IssuesDisplay => Manifest is null ? "(none)" : (Manifest.Issues.Count == 0 ? "(none)" : string.Join(Environment.NewLine, Manifest.Issues));
     public string ExclusionsDisplay => Manifest is null ? "(none)" : (Manifest.Exclusions.Count == 0 ? "(none)" : string.Join(Environment.NewLine, Manifest.Exclusions));
+    public bool HasManifestIssues
+    {
+        get => _hasManifestIssues;
+        private set { if (_hasManifestIssues == value) return; _hasManifestIssues = value; OnPropertyChanged(); OnPropertyChanged(nameof(IssuesSummaryLabel)); }
+    }
+
+    public bool HasManifestExclusions
+    {
+        get => _hasManifestExclusions;
+        private set { if (_hasManifestExclusions == value) return; _hasManifestExclusions = value; OnPropertyChanged(); OnPropertyChanged(nameof(ExclusionsSummaryLabel)); }
+    }
+
+    public string IssuesSummaryLabel => Manifest is null ? "Issues" : $"Issues ({Manifest.Issues.Count})";
+    public string ExclusionsSummaryLabel => Manifest is null ? "Exclusions" : $"Exclusions ({Manifest.Exclusions.Count})";
 
     public string KnownCountDisplay => Manifest is null ? "(none)" : Manifest.KnownQuantities.Count.ToString(CultureInfo.InvariantCulture);
     public string ProvisionalCountDisplay => Manifest is null ? "(none)" : Manifest.ProvisionalQuantities.Count.ToString(CultureInfo.InvariantCulture);
@@ -326,7 +344,12 @@ public sealed class SnapshotPanelViewModel : ViewModelBase
         ProvisionalQuantityLines.Clear();
         UnknownQuantityLines.Clear();
 
-        if (Manifest is null) return;
+        if (Manifest is null)
+        {
+            HasManifestIssues = false;
+            HasManifestExclusions = false;
+            return;
+        }
 
         foreach (var s in Manifest.SourceRefs) SourceRefs.Add(s);
         foreach (var i in Manifest.Issues) Issues.Add(i);
@@ -334,6 +357,9 @@ public sealed class SnapshotPanelViewModel : ViewModelBase
         foreach (var q in Manifest.KnownQuantities) KnownQuantityLines.Add(SnapshotQuantityLineDisplay.From(q));
         foreach (var q in Manifest.ProvisionalQuantities) ProvisionalQuantityLines.Add(SnapshotQuantityLineDisplay.From(q));
         foreach (var q in Manifest.UnknownQuantities) UnknownQuantityLines.Add(SnapshotQuantityLineDisplay.From(q));
+
+        HasManifestIssues = Manifest.Issues.Count > 0;
+        HasManifestExclusions = Manifest.Exclusions.Count > 0;
     }
 
     private static string FormatTotals(IReadOnlyList<SnapshotQuantityLine>? lines, string status)
