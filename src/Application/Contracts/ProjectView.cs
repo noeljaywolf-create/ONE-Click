@@ -15,4 +15,8 @@ public sealed record ProjectCapabilities(
 
 public sealed record ProjectScope(
     bool HasAcceptedModel,
-    IReadOnlyList<string> KnownLimitations);
+    IReadOnlyList<string> KnownLimitations)
+{
+    public int PieceCount { get; init; }
+    public int SnapshotCount { get; init; }
+}

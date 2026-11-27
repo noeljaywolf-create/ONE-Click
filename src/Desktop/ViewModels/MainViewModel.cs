@@ -26,10 +26,10 @@ public sealed class MainViewModel : ViewModelBase
     public MainViewModel(DesktopProjectBootstrapper bootstrapper)
     {
         _bootstrapper = bootstrapper ?? throw new ArgumentNullException(nameof(bootstrapper));
-        InitializeCommand = new AsyncRelayCommand(InitializeAsync, () => !IsBusy);
+        InitializeCommand = new SnapshotDelegateCommand(InitializeAsync, () => !IsBusy);
     }
 
-    public AsyncRelayCommand InitializeCommand { get; }
+    public SnapshotDelegateCommand InitializeCommand { get; }
 
     public string ProjectId
     {

@@ -21,4 +21,8 @@ public abstract class ViewModelBase : INotifyPropertyChanged
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
+
+    /// <summary>Compatibility alias used by some viewmodels.</summary>
+    protected void RaisePropertyChanged([CallerMemberName] string? propertyName = null)
+        => OnPropertyChanged(propertyName);
 }

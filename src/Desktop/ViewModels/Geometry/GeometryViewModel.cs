@@ -1,6 +1,4 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using OneClick.Core.Domain;
 
 namespace OneClick.Desktop.ViewModels.Geometry;
@@ -9,7 +7,7 @@ namespace OneClick.Desktop.ViewModels.Geometry;
 /// Bindable view model for the geometry plan view. Owns the displayed piece collection
 /// and selected piece. This is a display model; it does not mutate engineering state.
 /// </summary>
-public sealed class GeometryViewModel : INotifyPropertyChanged
+public sealed class GeometryViewModel : ViewModelBase
 {
     private GeometryPieceViewModel? _selectedPiece;
     private string _statusText = "No geometry loaded.";
@@ -18,8 +16,6 @@ public sealed class GeometryViewModel : INotifyPropertyChanged
     {
         Pieces = new ObservableCollection<GeometryPieceViewModel>();
     }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<GeometryPieceViewModel> Pieces { get; }
 
@@ -98,8 +94,5 @@ public sealed class GeometryViewModel : INotifyPropertyChanged
         StatusText = "No geometry loaded.";
     }
 
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
+
 }

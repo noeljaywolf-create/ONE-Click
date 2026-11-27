@@ -90,12 +90,16 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
     public ProjectView CreateProject(ProjectId projectId)
     {
         _store.CreateProjectAsync(projectId).GetAwaiter().GetResult();
+        int pieceCount = 0;
+        int snapshotCount = 0;
         if (_domainStateStore is not null)
         {
             var state = new OneClick.Core.Domain.ProjectDomainState(projectId, revision: 0);
             _domainStateStore.SaveAsync(state).GetAwaiter().GetResult();
+            pieceCount = state.Pieces.Count;
+            snapshotCount = state.SnapshotManifests.Count;
         }
-        return BuildView(projectId.Value, ProjectRevision.Initial);
+        return BuildView(projectId.Value, ProjectRevision.Initial, pieceCount, snapshotCount);
     }
 
     public async Task<CommandReceipt> ExecuteCommandAsync(
@@ -209,15 +213,32 @@ public sealed class InMemoryProjectCommandService : IProjectCommandService, IPro
                 "projectId"));
         }
 
-        return BuildView(state.ProjectId.Value, state.Revision);
+        var (pieceCount, snapshotCount) = await GetDomainCountsAsync(projectId, cancellationToken).ConfigureAwait(false);
+        return BuildView(state.ProjectId.Value, state.Revision, pieceCount, snapshotCount);
     }
 
-    private static ProjectView BuildView(string projectId, ProjectRevision revision) =>
+    private async Task<(int PieceCount, int SnapshotCount)> GetDomainCountsAsync(ProjectId projectId, CancellationToken cancellationToken)
+    {
+        if (_domainStateStore is null)
+            return (0, 0);
+
+        var snapshot = await _domainStateStore.GetSnapshotAsync(projectId, cancellationToken).ConfigureAwait(false);
+        if (snapshot is null)
+            return (0, 0);
+
+        return (snapshot.Pieces.Count, snapshot.SnapshotManifests.Count);
+    }
+
+    private static ProjectView BuildView(string projectId, ProjectRevision revision, int pieceCount, int snapshotCount) =>
         new(
             projectId,
             revision,
             new ProjectCapabilities(SupportedCommands, ["QueryProject"]),
-            new ProjectScope(HasAcceptedModel: false, KnownLimitations: ["in-memory-skeleton"]));
+            new ProjectScope(HasAcceptedModel: false, KnownLimitations: ["in-memory-skeleton"])
+            {
+                PieceCount = pieceCount,
+                SnapshotCount = snapshotCount,
+            });
 
     private static string BuildReplayKey(ProjectId projectId, ActorContext actorContext, CommandId commandId)
     {

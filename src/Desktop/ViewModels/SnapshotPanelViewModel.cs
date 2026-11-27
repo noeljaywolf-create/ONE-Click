@@ -1,8 +1,6 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Globalization;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using OneClick.Application.Services;
 using OneClick.Core.Domain;
@@ -13,7 +11,7 @@ namespace OneClick.Desktop.ViewModels;
 /// ViewModel for the snapshot/export panel. Exposes bindable commands and callbacks so the shell
 /// can wire freeze/export behavior to application services without the control owning service creation.
 /// </summary>
-public sealed class SnapshotPanelViewModel : INotifyPropertyChanged
+public sealed class SnapshotPanelViewModel : ViewModelBase
 {
     private SnapshotManifest? _manifest;
     private string _snapshotIdInput = "snap-001";
@@ -40,7 +38,7 @@ public sealed class SnapshotPanelViewModel : INotifyPropertyChanged
         UnknownQuantityLines = new ObservableCollection<SnapshotQuantityLineDisplay>();
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
+
 
     /// <summary>Shell wiring: performs freeze and returns the frozen manifest. The shell should call SnapshotFreezeService.</summary>
     public Func<string, string?, CancellationToken, Task<SnapshotManifest>>? FreezeAction { get; set; }
@@ -375,8 +373,7 @@ public sealed class SnapshotPanelViewModel : INotifyPropertyChanged
         IsBusy = false;
     }
 
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
 }
 
 public sealed record SnapshotQuantityLineDisplay(
